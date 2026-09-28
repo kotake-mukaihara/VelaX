@@ -1,16 +1,25 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../domain/models/clothing_item.dart';
 import '../../domain/models/category.dart';
 import '../wardrobe/wardrobe_page.dart';
+import '../wardrobe/edit_image_page.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, required this.loadItems, this.loadCategories});
+  const HomePage({
+    super.key,
+    required this.loadItems,
+    this.loadCategories,
+    this.imagePicker,
+  });
 
   final Future<List<ClothingItem>> Function() loadItems;
   final Future<List<Category>> Function()? loadCategories;
+  final ImagePicker? imagePicker;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -19,11 +28,96 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late Future<List<ClothingItem>> _items;
   int _selectedIndex = 0;
+  late final ImagePicker _picker = widget.imagePicker ?? ImagePicker();
+  bool _picking = false;
 
   @override
   void initState() {
     super.initState();
     _items = widget.loadItems();
+    if (Platform.isAndroid) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _recoverPhoto());
+    }
+  }
+
+  Future<void> _recoverPhoto() async {
+    try {
+      final response = await _picker.retrieveLostData();
+      if (!mounted) return;
+      if (response.files?.isNotEmpty ?? false) {
+        _selectTab(1);
+        await _openEditor(response.files!.first);
+      } else if (response.exception != null) {
+        _showPickerError(response.exception!);
+      }
+    } on PlatformException catch (error) {
+      if (mounted) _showPickerError(error);
+    }
+  }
+
+  Future<void> _openEditor(XFile image) => Navigator.of(context).push<void>(
+    MaterialPageRoute(builder: (_) => EditImagePage(imagePath: image.path)),
+  );
+
+  void _showPickerError(PlatformException error) {
+    final denied = error.code.toLowerCase().contains('access');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(denied ? '无法访问相机或相册，请在系统设置中允许访问后重试' : '无法获取照片，请重试'),
+      ),
+    );
+  }
+
+  Future<void> _addPhoto() async {
+    if (_picking) return;
+    setState(() => _picking = true);
+    try {
+      final platform = Theme.of(context).platform;
+      final desktop =
+          platform == TargetPlatform.windows ||
+          platform == TargetPlatform.macOS;
+      final source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('拍照'),
+                subtitle: desktop ? const Text('Windows/MacOS端暂不支持') : null,
+                enabled: !desktop,
+                onTap: desktop
+                    ? null
+                    : () => Navigator.pop(sheetContext, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('从相册选择'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      );
+      if (source == null || !mounted) return;
+      final image = await _picker.pickImage(
+        source: source,
+        requestFullMetadata: false,
+      );
+      if (image != null && mounted) await _openEditor(image);
+    } on PlatformException catch (error) {
+      if (mounted) _showPickerError(error);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('无法获取照片，请重试')));
+      }
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
   }
 
   Future<void> _refresh() async {
@@ -46,6 +140,13 @@ class _HomePageState extends State<HomePage> {
     builder: (context, constraints) {
       final wide = constraints.maxWidth >= 800;
       return Scaffold(
+        floatingActionButton: _selectedIndex == 1
+            ? FloatingActionButton(
+                tooltip: '添加单品',
+                onPressed: _picking ? null : _addPhoto,
+                child: const Icon(Icons.add),
+              )
+            : null,
         body: SafeArea(
           child: Row(
             children: [

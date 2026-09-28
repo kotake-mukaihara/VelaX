@@ -116,7 +116,7 @@ class _WardrobePageState extends State<WardrobePage> {
                   widget.wide ? 40 : 24,
                   8,
                   widget.wide ? 40 : 24,
-                  32,
+                  96,
                 ),
                 itemCount: snapshot.hasError || items.isEmpty
                     ? 1
