@@ -90,18 +90,40 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "client" "\0"
+            VALUE "FileDescription", "VelaX" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "client" "\0"
+            VALUE "InternalName", "VelaX" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "client.exe" "\0"
-            VALUE "ProductName", "client" "\0"
+            VALUE "OriginalFilename", "VelaX.exe" "\0"
+            VALUE "ProductName", "VelaX" "\0"
+            VALUE "ProductVersion", VERSION_AS_STRING "\0"
+        END
+        BLOCK "080404b0"
+        BEGIN
+            VALUE "CompanyName", "com.example" "\0"
+            VALUE "FileDescription", "栖色" "\0"
+            VALUE "FileVersion", VERSION_AS_STRING "\0"
+            VALUE "InternalName", "VelaX" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
+            VALUE "OriginalFilename", "VelaX.exe" "\0"
+            VALUE "ProductName", "栖色" "\0"
+            VALUE "ProductVersion", VERSION_AS_STRING "\0"
+        END
+        BLOCK "040404b0"
+        BEGIN
+            VALUE "CompanyName", "com.example" "\0"
+            VALUE "FileDescription", "栖色" "\0"
+            VALUE "FileVersion", VERSION_AS_STRING "\0"
+            VALUE "InternalName", "VelaX" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
+            VALUE "OriginalFilename", "VelaX.exe" "\0"
+            VALUE "ProductName", "栖色" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
     BLOCK "VarFileInfo"
     BEGIN
-        VALUE "Translation", 0x409, 1252
+        VALUE "Translation", 0x409, 1252, 0x804, 1200, 0x404, 1200
     END
 END
 

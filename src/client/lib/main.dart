@@ -32,7 +32,10 @@ class _MainAppState extends State<MainApp> {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: '栖色 Velax',
+    onGenerateTitle: (context) =>
+        View.of(context).platformDispatcher.locale.languageCode == 'zh'
+            ? '栖色'
+            : 'VelaX',
     debugShowCheckedModeBanner: false,
     theme: ThemeData(
       useMaterial3: true,

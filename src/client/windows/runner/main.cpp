@@ -27,7 +27,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  if (!window.Create(L"client", origin, size)) {
+  const wchar_t* app_name =
+      PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_CHINESE
+          ? L"\u6816\u8272"
+          : L"VelaX";
+  if (!window.Create(app_name, origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);
