@@ -1,0 +1,17 @@
+const colorPresets = <(String, String, String)>[
+  ('white', '白色', '#FFFFFF'),
+  ('cream', '米白色', '#F6EDDB'),
+  ('black', '黑色', '#000000'),
+  ('gray', '灰色', '#A0A0A0'),
+  ('red', '红色', '#FF0000'),
+  ('orange', '橙色', '#FFA500'),
+  ('yellow', '黄色', '#FFFF00'),
+  ('green', '绿色', '#00CC66'),
+  ('cyan', '青色', '#26C6DA'),
+  ('blue', '蓝色', '#3399FF'),
+  ('purple', '紫色', '#9933FF'),
+  ('pink', '粉色', '#FF99CC'),
+  ('khaki', '卡其色', '#D6C3B2'),
+  ('brown', '棕色', '#4B2C23'),
+  ('navy', '藏青色', '#1A2747'),
+];
