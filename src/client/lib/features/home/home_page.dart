@@ -3,11 +3,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../domain/models/clothing_item.dart';
+import '../../domain/models/category.dart';
+import '../wardrobe/wardrobe_page.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, required this.loadItems});
+  const HomePage({super.key, required this.loadItems, this.loadCategories});
 
   final Future<List<ClothingItem>> Function() loadItems;
+  final Future<List<Category>> Function()? loadCategories;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -25,7 +28,9 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _refresh() async {
     final request = widget.loadItems();
-    setState(() => _items = request);
+    setState(() {
+      _items = request;
+    });
     await request;
   }
 
@@ -128,7 +133,7 @@ class _HomePageState extends State<HomePage> {
                       ],
                     )
                   else ...[
-                    _Overview(items: items, onOpen: () {}),
+                    _Overview(items: items, onOpen: () => _selectTab(1)),
                     const SizedBox(height: 32),
                     const Text(
                       '最近添加',
@@ -219,7 +224,13 @@ class _HomePageState extends State<HomePage> {
             );
           },
         )
-      : Center(child: Text(_selectedIndex == 1 ? '衣橱页面即将上线' : '我的页面即将上线'));
+      : _selectedIndex == 1
+      ? WardrobePage(
+          loadItems: widget.loadItems,
+          loadCategories: widget.loadCategories ?? () async => <Category>[],
+          wide: wide,
+        )
+      : const Center(child: Text('我的页面即将上线'));
 
   Widget _buildBottomNavigation() => NavigationBar(
     selectedIndex: _selectedIndex,

@@ -40,7 +40,7 @@ void main() {
     expect(find.text('还没有衣物'), findsOneWidget);
     await tester.tap(find.byTooltip('查看衣橱'));
     await tester.pumpAndSettle();
-    expect(find.text('衣橱概览'), findsOneWidget);
+    expect(find.text('我的衣橱'), findsOneWidget);
     await tester.tap(find.text('首页'));
     await tester.pumpAndSettle();
     expect(find.text('最近添加'), findsOneWidget);

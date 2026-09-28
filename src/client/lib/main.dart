@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'data/database/app_database.dart';
 import 'data/repositories/clothing_item_repository.dart';
+import 'data/repositories/category_repository.dart';
 import 'features/home/home_page.dart';
 
 void main() => runApp(const MainApp());
@@ -32,6 +33,9 @@ class _MainAppState extends State<MainApp> {
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF65745B)),
       scaffoldBackgroundColor: const Color(0xFFFAF9F6),
     ),
-    home: HomePage(loadItems: _items.items),
+    home: HomePage(
+      loadItems: _items.items,
+      loadCategories: CategoryRepository(_database).categories,
+    ),
   );
 }
