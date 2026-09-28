@@ -8,6 +8,7 @@ import '../../domain/models/clothing_item.dart';
 import '../../domain/models/category.dart';
 import '../wardrobe/wardrobe_page.dart';
 import '../wardrobe/edit_image_page.dart';
+import '../wardrobe/item_options.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -15,11 +16,13 @@ class HomePage extends StatefulWidget {
     required this.loadItems,
     this.loadCategories,
     this.imagePicker,
+    this.itemOptions,
   });
 
   final Future<List<ClothingItem>> Function() loadItems;
   final Future<List<Category>> Function()? loadCategories;
   final ImagePicker? imagePicker;
+  final ItemOptions? itemOptions;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -30,6 +33,7 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   late final ImagePicker _picker = widget.imagePicker ?? ImagePicker();
   bool _picking = false;
+  int _wardrobeRevision = 0;
 
   @override
   void initState() {
@@ -55,9 +59,22 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _openEditor(XFile image) => Navigator.of(context).push<void>(
-    MaterialPageRoute(builder: (_) => EditImagePage(imagePath: image.path)),
-  );
+  Future<void> _openEditor(XFile image) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) =>
+            EditImagePage(imagePath: image.path, options: widget.itemOptions),
+      ),
+    );
+    if (saved == true && mounted) {
+      setState(() {
+        _wardrobeRevision++;
+        _items = widget.loadItems();
+      });
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('单品已保存')));
+    }
+  }
 
   void _showPickerError(PlatformException error) {
     final denied = error.code.toLowerCase().contains('access');
@@ -327,6 +344,7 @@ class _HomePageState extends State<HomePage> {
         )
       : _selectedIndex == 1
       ? WardrobePage(
+          key: ValueKey(_wardrobeRevision),
           loadItems: widget.loadItems,
           loadCategories: widget.loadCategories ?? () async => <Category>[],
           wide: wide,

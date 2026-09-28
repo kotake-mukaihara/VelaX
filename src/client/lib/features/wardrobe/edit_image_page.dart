@@ -2,10 +2,21 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-class EditImagePage extends StatelessWidget {
-  const EditImagePage({super.key, required this.imagePath});
+import 'edit_item_page.dart';
+import 'item_options.dart';
+
+class EditImagePage extends StatefulWidget {
+  const EditImagePage({super.key, required this.imagePath, this.options});
 
   final String imagePath;
+  final ItemOptions? options;
+
+  @override
+  State<EditImagePage> createState() => _EditImagePageState();
+}
+
+class _EditImagePageState extends State<EditImagePage> {
+  final _draft = ItemDraft();
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -27,7 +38,7 @@ class EditImagePage extends StatelessWidget {
                       child: CustomPaint(
                         painter: const _CheckerboardPainter(),
                         child: Image.file(
-                          File(imagePath),
+                          File(widget.imagePath),
                           fit: BoxFit.contain,
                           semanticLabel: '待编辑的衣物照片',
                           errorBuilder: (_, _, _) =>
@@ -65,9 +76,25 @@ class EditImagePage extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    const SizedBox(
+                    SizedBox(
                       width: double.infinity,
-                      child: FilledButton(onPressed: null, child: Text('下一步')),
+                      child: FilledButton(
+                        onPressed: () async {
+                          final saved = await Navigator.of(context).push<bool>(
+                            MaterialPageRoute(
+                              builder: (_) => EditItemPage(
+                                imagePath: widget.imagePath,
+                                options: widget.options,
+                                draft: _draft,
+                              ),
+                            ),
+                          );
+                          if (saved == true && context.mounted) {
+                            Navigator.pop(context, true);
+                          }
+                        },
+                        child: const Text('下一步'),
+                      ),
                     ),
                   ],
                 ),
