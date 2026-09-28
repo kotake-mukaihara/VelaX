@@ -1,11 +1,11 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../../domain/models/brand.dart';
+import '../../domain/models/clothing_item.dart';
 import '../../domain/models/category.dart';
 import '../../domain/models/color.dart' as model;
 import 'item_options.dart';
+import 'item_image_preview.dart';
 
 class EditItemPage extends StatefulWidget {
   const EditItemPage({
@@ -13,16 +13,35 @@ class EditItemPage extends StatefulWidget {
     required this.imagePath,
     this.options,
     this.draft,
+    this.item,
   });
   final String imagePath;
   final ItemOptions? options;
   final ItemDraft? draft;
+  final ClothingItem? item;
   @override
   State<EditItemPage> createState() => _EditItemPageState();
 }
 
 class _EditItemPageState extends State<EditItemPage> {
-  late final ItemDraft _saved = widget.draft ?? ItemDraft();
+  late final ItemDraft _saved =
+      widget.draft ??
+      (widget.item == null
+          ? ItemDraft()
+          : ItemDraft(
+              category: widget.item!.category,
+              brand: widget.item!.brand,
+              size: widget.item!.size,
+              colors: [
+                widget.item!.primaryColor,
+                ...widget.item!.secondaryColors,
+                ...List<model.Color?>.filled(
+                  2 - widget.item!.secondaryColors.length,
+                  null,
+                ),
+              ],
+              note: widget.item!.note ?? '',
+            ));
   late final _noteController = TextEditingController(text: _saved.note);
   bool _saving = false;
 
@@ -35,13 +54,35 @@ class _EditItemPageState extends State<EditItemPage> {
       return;
     }
     final save = widget.options?.saveItem;
-    if (save == null) return;
+    if (widget.item == null
+        ? save == null
+        : widget.options?.updateItem == null) {
+      return;
+    }
     setState(() => _saving = true);
     try {
-      await save(widget.imagePath, _category!, _brand, _size, [
-        ..._colors,
-      ], _note);
-      if (mounted) Navigator.pop(context, true);
+      if (widget.item case final item?) {
+        final updated = await widget.options!.updateItem!(
+          ClothingItem(
+            id: item.id,
+            image: widget.imagePath,
+            category: _category!,
+            brand: _brand,
+            size: _size,
+            primaryColor: _colors.first,
+            secondaryColors: _colors.skip(1).whereType<model.Color>().toList(),
+            note: _note,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          ),
+        );
+        if (mounted) Navigator.pop(context, updated);
+      } else {
+        await save!(widget.imagePath, _category!, _brand, _size, [
+          ..._colors,
+        ], _note);
+        if (mounted) Navigator.pop(context, true);
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -129,37 +170,7 @@ class _EditItemPageState extends State<EditItemPage> {
             child: ListView(
               padding: const EdgeInsets.all(24),
               children: [
-                Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 320),
-                    child: AspectRatio(
-                      aspectRatio: 1,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x1A000000),
-                              blurRadius: 16,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(24),
-                          child: Image.file(
-                            File(widget.imagePath),
-                            fit: BoxFit.contain,
-                            semanticLabel: '单品照片',
-                            errorBuilder: (_, _, _) =>
-                                const Center(child: Text('照片无法读取')),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                ItemImagePreview(imagePath: widget.imagePath),
                 const SizedBox(height: 24),
                 Material(
                   color: Colors.white,

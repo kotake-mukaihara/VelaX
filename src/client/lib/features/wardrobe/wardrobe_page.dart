@@ -12,11 +12,13 @@ class WardrobePage extends StatefulWidget {
     required this.loadItems,
     required this.loadCategories,
     this.wide = false,
+    this.onOpenItem,
   });
 
   final Future<List<ClothingItem>> Function() loadItems;
   final Future<List<Category>> Function() loadCategories;
   final bool wide;
+  final ValueChanged<ClothingItem>? onOpenItem;
 
   @override
   State<WardrobePage> createState() => _WardrobePageState();
@@ -180,7 +182,10 @@ class _WardrobePageState extends State<WardrobePage> {
                             count: groups[child]!.length,
                           ),
                           const SizedBox(height: 12),
-                          _PhotoStrip(items: groups[child]!),
+                          _PhotoStrip(
+                            items: groups[child]!,
+                            onOpenItem: widget.onOpenItem,
+                          ),
                         ],
                       ],
                     ),
@@ -230,8 +235,9 @@ class _CategoryHeading extends StatelessWidget {
 }
 
 class _PhotoStrip extends StatelessWidget {
-  const _PhotoStrip({required this.items});
+  const _PhotoStrip({required this.items, this.onOpenItem});
   final List<ClothingItem> items;
+  final ValueChanged<ClothingItem>? onOpenItem;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -246,23 +252,26 @@ class _PhotoStrip extends StatelessWidget {
         itemBuilder: (context, index) => Semantics(
           label: '${items[index].category.name}，第${index + 1}件',
           image: true,
-          child: ClipRRect(
-            key: ValueKey('wardrobe-photo-${items[index].id}'),
-            borderRadius: BorderRadius.circular(16),
-            child: Image.file(
-              File(items[index].image),
-              width: 132,
-              height: 164,
-              fit: BoxFit.cover,
-              cacheWidth: 400,
-              errorBuilder: (_, _, _) => Container(
+          child: InkWell(
+            onTap: onOpenItem == null ? null : () => onOpenItem!(items[index]),
+            child: ClipRRect(
+              key: ValueKey('wardrobe-photo-${items[index].id}'),
+              borderRadius: BorderRadius.circular(16),
+              child: Image.file(
+                File(items[index].image),
                 width: 132,
-                color: const Color(0xFFEDEEE8),
-                child: const Center(
-                  child: Icon(
-                    Icons.broken_image_outlined,
-                    semanticLabel: '照片无法读取',
-                    color: Colors.black38,
+                height: 164,
+                fit: BoxFit.cover,
+                cacheWidth: 400,
+                errorBuilder: (_, _, _) => Container(
+                  width: 132,
+                  color: const Color(0xFFEDEEE8),
+                  child: const Center(
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      semanticLabel: '照片无法读取',
+                      color: Colors.black38,
+                    ),
                   ),
                 ),
               ),

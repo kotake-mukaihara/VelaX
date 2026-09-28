@@ -9,6 +9,7 @@ import '../../domain/models/category.dart';
 import '../wardrobe/wardrobe_page.dart';
 import '../wardrobe/edit_image_page.dart';
 import '../wardrobe/item_options.dart';
+import '../wardrobe/item_detail_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -144,6 +145,22 @@ class _HomePageState extends State<HomePage> {
     });
     await request;
   }
+
+  Future<void> _openItem(ClothingItem item) => Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      builder: (_) => ItemDetailPage(
+        item: item,
+        options: widget.itemOptions,
+        onChanged: () {
+          if (!mounted) return;
+          setState(() {
+            _wardrobeRevision++;
+            _items = widget.loadItems();
+          });
+        },
+      ),
+    ),
+  );
 
   void _selectTab(int index) {
     setState(() {
@@ -310,22 +327,25 @@ class _HomePageState extends State<HomePage> {
                                 label:
                                     '最近添加的${items[index].category.name}，第${index + 1}件',
                                 image: true,
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Image.file(
-                                    File(items[index].image),
-                                    width: photoWidth,
-                                    height: photoHeight,
-                                    fit: BoxFit.cover,
-                                    cacheWidth: 400,
-                                    errorBuilder: (_, _, _) => Container(
+                                child: InkWell(
+                                  onTap: () => _openItem(items[index]),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Image.file(
+                                      File(items[index].image),
                                       width: photoWidth,
-                                      color: const Color(0xFFEDEEE8),
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.broken_image_outlined,
-                                          semanticLabel: '照片无法读取',
-                                          color: Colors.black38,
+                                      height: photoHeight,
+                                      fit: BoxFit.cover,
+                                      cacheWidth: 400,
+                                      errorBuilder: (_, _, _) => Container(
+                                        width: photoWidth,
+                                        color: const Color(0xFFEDEEE8),
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.broken_image_outlined,
+                                            semanticLabel: '照片无法读取',
+                                            color: Colors.black38,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -348,6 +368,7 @@ class _HomePageState extends State<HomePage> {
           loadItems: widget.loadItems,
           loadCategories: widget.loadCategories ?? () async => <Category>[],
           wide: wide,
+          onOpenItem: _openItem,
         )
       : const Center(child: Text('我的页面即将上线'));
 

@@ -46,6 +46,17 @@ class _MainAppState extends State<MainApp> {
         brands: BrandRepository(_database).brands,
         colors: ColorRepository(_database).colors,
         createBrand: BrandRepository(_database).createBrand,
+        deleteItem: _items.deleteItem,
+        updateItem: (item) => _items.saveItem(
+          id: item.id,
+          image: item.image,
+          categoryId: item.category.id,
+          brandId: item.brand?.id,
+          size: item.size,
+          primaryColorId: item.primaryColor?.id,
+          secondaryColorIds: item.secondaryColors.map((c) => c.id).toList(),
+          note: item.note,
+        ),
         saveItem: (image, category, brand, size, colors, note) async {
           final path = await LocalImageStore().importFile(File(image));
           await _items.saveItem(
