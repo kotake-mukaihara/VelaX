@@ -10,6 +10,7 @@ import '../wardrobe/wardrobe_page.dart';
 import '../wardrobe/edit_image_page.dart';
 import '../wardrobe/item_options.dart';
 import '../wardrobe/item_detail_page.dart';
+import '../profile/profile_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -370,7 +371,7 @@ class _HomePageState extends State<HomePage> {
           wide: wide,
           onOpenItem: _openItem,
         )
-      : const Center(child: Text('我的页面即将上线'));
+      : ProfilePage(wide: wide);
 
   Widget _buildBottomNavigation() => NavigationBar(
     selectedIndex: _selectedIndex,
