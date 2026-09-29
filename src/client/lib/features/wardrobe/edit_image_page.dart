@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 
 import 'crop_image_page.dart';
 import 'erase_image_page.dart';
-import 'checkerboard_painter.dart';
+import 'eraser_icon.dart';
+
 import 'edit_item_page.dart';
 import 'item_options.dart';
 
@@ -24,23 +25,83 @@ class _EditImagePageState extends State<EditImagePage> {
   late String _imagePath = widget.imagePath;
   final _temporaryImages = <String>[];
 
-  Future<void> _edit({bool erase = false}) async {
-    final result = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (_) => erase
-            ? EraseImagePage(imagePath: _imagePath)
-            : CropImagePage(imagePath: _imagePath),
-      ),
-    );
-    if (result == null) return;
-    if (!mounted) {
-      await _removeTemporaryImage(result);
+  final _cropKey = GlobalKey<CropImagePageState>();
+  final _eraseKey = GlobalKey<EraseImagePageState>();
+  bool _erase = false;
+  bool _busy = false;
+
+  Future<bool> _commit() async {
+    try {
+      final path = _erase
+          ? await _eraseKey.currentState?.exportImage()
+          : await _cropKey.currentState?.exportImage();
+      if (path != null && path != _imagePath) {
+        _temporaryImages.add(path);
+        _imagePath = path;
+      }
+      return mounted;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('图片保存失败，请重试')));
+      }
+      return false;
+    }
+  }
+
+  Future<void> _selectTool(bool erase) async {
+    if (_busy || erase == _erase) return;
+    setState(() => _busy = true);
+    try {
+      await Future.wait([
+        _cropKey.currentState!.ready,
+        _eraseKey.currentState!.ready,
+      ]);
+      final image = _erase
+          ? await _eraseKey.currentState!.shareImage()
+          : await _cropKey.currentState!.shareImage();
+      if (!mounted) {
+        image?.dispose();
+        return;
+      }
+      if (image != null) {
+        if (erase) {
+          _eraseKey.currentState!.replaceImage(image);
+        } else {
+          _cropKey.currentState!.replaceImage(image);
+        }
+      }
+      setState(() => _erase = erase);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('图片处理失败，请重试')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _next() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    if (!await _commit()) {
+      if (mounted) setState(() => _busy = false);
       return;
     }
-    setState(() {
-      _temporaryImages.add(result);
-      _imagePath = result;
-    });
+    if (!mounted) return;
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => EditItemPage(
+          imagePath: _imagePath,
+          options: widget.options,
+          draft: _draft,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (saved == true) Navigator.pop(context, true);
   }
 
   Future<void> _removeTemporaryImage(String path) async {
@@ -96,93 +157,62 @@ class _EditImagePageState extends State<EditImagePage> {
       if (!didPop) _confirmExit();
     },
     child: Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         leading: BackButton(onPressed: _confirmExit),
         title: const Text('编辑图片'),
+        actions: [
+          TextButton(
+            key: const ValueKey('edit-image-next'),
+            onPressed: _next,
+            child: const Text('下一步'),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1100),
-            child: Column(
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: SizedBox.expand(
-                      child: ClipRect(
-                        child: CustomPaint(
-                          painter: const CheckerboardPainter(),
-                          child: Image.file(
-                            File(_imagePath),
-                            fit: BoxFit.contain,
-                            semanticLabel: '待编辑的衣物照片',
-                            errorBuilder: (_, _, _) =>
-                                const Center(child: Text('照片无法读取，请返回重新选择')),
-                          ),
-                        ),
-                      ),
+        top: false,
+        child: Column(
+          children: [
+            Expanded(
+              child: AbsorbPointer(
+                absorbing: _busy,
+                child: IndexedStack(
+                  index: _erase ? 1 : 0,
+                  children: [
+                    CropImagePage(
+                      key: _cropKey,
+                      imagePath: widget.imagePath,
+                      embedded: true,
                     ),
-                  ),
+                    EraseImagePage(
+                      key: _eraseKey,
+                      imagePath: widget.imagePath,
+                      embedded: true,
+                    ),
+                  ],
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          for (final action in [
-                            ('裁剪', Icons.crop),
-                            ('擦除', Icons.auto_fix_normal_outlined),
-                            ('一键抠图', Icons.content_cut),
-                          ])
-                            Expanded(
-                              child: TextButton(
-                                onPressed: action.$1 == '裁剪'
-                                    ? () => _edit()
-                                    : action.$1 == '擦除'
-                                    ? () => _edit(erase: true)
-                                    : null,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(action.$2),
-                                    const SizedBox(height: 8),
-                                    Text(action.$1),
-                                  ],
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: () async {
-                            final saved = await Navigator.of(context)
-                                .push<bool>(
-                                  MaterialPageRoute(
-                                    builder: (_) => EditItemPage(
-                                      imagePath: _imagePath,
-                                      options: widget.options,
-                                      draft: _draft,
-                                    ),
-                                  ),
-                                );
-                            if (saved == true && context.mounted) {
-                              Navigator.pop(context, true);
-                            }
-                          },
-                          child: const Text('下一步'),
-                        ),
-                      ),
-                    ],
-                  ),
+              ),
+            ),
+            NavigationBar(
+              selectedIndex: _erase ? 1 : 0,
+              onDestinationSelected: (index) => _selectTool(index == 1),
+              backgroundColor: Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerLow,
+              destinations: const [
+                NavigationDestination(icon: Icon(Icons.crop), label: '裁剪'),
+                NavigationDestination(
+                  icon: EraserIcon(),
+                  selectedIcon: EraserIcon(filled: true),
+                  label: '擦除',
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     ),

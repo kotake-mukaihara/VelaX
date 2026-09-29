@@ -64,10 +64,14 @@ void main() {
       await tester.tap(
         find.text(source == ImageSource.camera ? '拍照' : '从相册选择'),
       );
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
       await tester.pumpAndSettle();
       expect(picker.source, source);
       expect(find.text('编辑图片'), findsOneWidget);
-      for (final text in ['裁剪', '擦除', '一键抠图', '下一步']) {
+      for (final text in ['裁剪', '擦除', '下一步']) {
         expect(find.text(text), findsOneWidget);
       }
       await tester.tap(find.byType(BackButton));

@@ -11,21 +11,31 @@ import 'crop_geometry.dart';
 import 'crop_image_renderer.dart';
 
 const _blue = Color(0xFF438EFF);
-const _background = Color(0xFF171717);
-const _panel = Color(0xFF222222);
-const _gray = Color(0xFFBDBDBD);
 
 class CropImagePage extends StatefulWidget {
-  const CropImagePage({super.key, required this.imagePath});
+  const CropImagePage({
+    super.key,
+    required this.imagePath,
+    this.embedded = false,
+  });
   final String imagePath;
+  final bool embedded;
 
   @override
-  State<CropImagePage> createState() => _CropImagePageState();
+  State<CropImagePage> createState() => CropImagePageState();
 }
 
-class _CropImagePageState extends State<CropImagePage>
+class CropImagePageState extends State<CropImagePage>
     with SingleTickerProviderStateMixin {
+  ColorScheme get _colors => Theme.of(context).colorScheme;
+  Color get _background => _colors.surface;
+  Color get _panel => _colors.surfaceContainerLow;
+  Color get _gray => _colors.onSurfaceVariant;
+  Color get _blue => _colors.primary;
   ui.Image? _image;
+  late final Future<void> ready;
+  CropState? _sharedState;
+  bool _receivedImage = false;
   String? _error;
   CropState? _state;
   late CropState _initial;
@@ -49,7 +59,7 @@ class _CropImagePageState extends State<CropImagePage>
   late final AnimationController _animation =
       AnimationController(
         vsync: this,
-        duration: const Duration(milliseconds: 230),
+        duration: Duration(milliseconds: 230),
         value: 1,
       )..addListener(() {
         if (mounted) setState(() {});
@@ -73,7 +83,46 @@ class _CropImagePageState extends State<CropImagePage>
   @override
   void initState() {
     super.initState();
-    _load();
+    ready = _load();
+  }
+
+  Future<ui.Image?> shareImage() async {
+    await ready;
+    if (_image == null || (_sharedState?.sameAs(_state!) ?? false)) return null;
+    final state = coverCrop(_state!, _imageSize);
+    final codec = await ui.instantiateImageCodec(
+      await renderCrop(_image!, state),
+    );
+    try {
+      final image = (await codec.getNextFrame()).image;
+      _sharedState = state;
+      return image;
+    } finally {
+      codec.dispose();
+    }
+  }
+
+  void replaceImage(ui.Image image) {
+    _animation.stop();
+    final old = _image;
+    setState(() {
+      _image = image;
+      _error = null;
+      _receivedImage = true;
+      _initial = CropState.initial(_imageSize);
+      _state = _sharedState = _initial;
+      _history
+        ..clear()
+        ..add(_initial);
+      _historyIndex = 0;
+      _cameraFrom = _cameraTo = _initial.crop;
+      _snapFrom = null;
+      _snapScaleFrom = null;
+      _gestureBase = null;
+      _segmentBase = null;
+      _pointers.clear();
+    });
+    old?.dispose();
   }
 
   Future<void> _load() async {
@@ -96,6 +145,7 @@ class _CropImagePageState extends State<CropImagePage>
         _state = _initial;
         _cameraFrom = _cameraTo = _initial.crop;
         _history.add(_initial);
+        _sharedState = _initial;
       });
     } catch (_) {
       if (mounted) setState(() => _error = '照片无法读取，请返回重新选择');
@@ -166,20 +216,20 @@ class _CropImagePageState extends State<CropImagePage>
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: _panel,
-        title: const Text(
+        title: Text(
           '确定放弃对图片的修改吗？',
-          style: TextStyle(color: Colors.white, fontSize: 18),
+          style: TextStyle(color: _colors.onSurface, fontSize: 18),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: _gray),
-            child: const Text('放弃'),
+            child: Text('放弃'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            style: TextButton.styleFrom(foregroundColor: Colors.white),
-            child: const Text('取消'),
+            style: TextButton.styleFrom(foregroundColor: _colors.onSurface),
+            child: Text('取消'),
           ),
         ],
       ),
@@ -195,9 +245,7 @@ class _CropImagePageState extends State<CropImagePage>
     try {
       final bytes = await renderCrop(_image!, _state!);
       final directory = await getTemporaryDirectory();
-      output = File(
-        p.join(directory.path, 'velax_crop_${const Uuid().v4()}.png'),
-      );
+      output = File(p.join(directory.path, 'velax_crop_${Uuid().v4()}.png'));
       await output.writeAsBytes(bytes, flush: true);
       if (!mounted) {
         await output.delete();
@@ -209,7 +257,7 @@ class _CropImagePageState extends State<CropImagePage>
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('裁剪保存失败，请重试')));
+          .showSnackBar(SnackBar(content: Text('裁剪保存失败，请重试')));
     }
   }
 
@@ -310,105 +358,122 @@ class _CropImagePageState extends State<CropImagePage>
     if (base != null) _settle(base, record: false);
   }
 
-  @override
-  Widget build(BuildContext context) => PopScope<String>(
-    canPop: _allowExit,
-    onPopInvokedWithResult: (didPop, result) {
-      if (!didPop) _back();
-    },
-    child: Scaffold(
-      backgroundColor: _background,
-      appBar: AppBar(
-        backgroundColor: _background,
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        leading: BackButton(onPressed: _saving ? null : _back),
-        actions: [
-          TextButton(
-            key: const ValueKey('crop-complete'),
-            onPressed: _dirty && !_saving && _gestureBase == null
-                ? _complete
-                : null,
-            style: TextButton.styleFrom(
-              foregroundColor: _blue,
-              disabledForegroundColor: const Color(0xFF666666),
-            ),
-            child: _saving
-                ? const SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('完成'),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        child: _state == null
-            ? Center(
-                child: _error == null
-                    ? const CircularProgressIndicator(color: _gray)
-                    : Text(_error!, style: const TextStyle(color: _gray)),
-              )
-            : AbsorbPointer(
-                absorbing: _saving,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    // Keep a useful preview on short landscape windows as well.
-                    final controlsHeight = math.min(
-                      238.0,
-                      constraints.maxHeight * 0.48,
-                    );
-                    return Column(
-                      children: [
-                        Expanded(
-                          child: LayoutBuilder(
-                            builder: (context, constraints) => Listener(
-                              key: const ValueKey('crop-preview'),
-                              behavior: HitTestBehavior.opaque,
-                              onPointerDown: (event) =>
-                                  _startPointer(event, constraints.biggest),
-                              onPointerMove: _movePointer,
-                              onPointerUp: _endPointer,
-                              onPointerCancel: _cancelPointer,
-                              child: ClipRect(
-                                child: CustomPaint(
-                                  size: constraints.biggest,
-                                  painter: _CropPainter(
-                                    _image!,
-                                    _visualState,
-                                    _camera,
-                                  ),
-                                ),
+  /// Exports applied edits without leaving the containing editor.
+  Future<String> exportImage() async {
+    if (_image == null || (!_dirty && !_receivedImage)) return widget.imagePath;
+    final bytes = await renderCrop(_image!, coverCrop(_state!, _imageSize));
+    final directory = await getTemporaryDirectory();
+    final output = File(
+      p.join(directory.path, 'velax_Crop_${Uuid().v4()}.png'),
+    );
+    await output.writeAsBytes(bytes, flush: true);
+    return output.path;
+  }
+
+  Widget _editor() => SafeArea(
+    top: false,
+    child: _state == null
+        ? Center(
+            child: _error == null
+                ? CircularProgressIndicator(color: _gray)
+                : Text(_error!, style: TextStyle(color: _gray)),
+          )
+        : AbsorbPointer(
+            absorbing: _saving,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Keep a useful preview on short landscape windows as well.
+                final controlsHeight = math.min(
+                  238.0,
+                  constraints.maxHeight * 0.48,
+                );
+                return Column(
+                  children: [
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) => Listener(
+                          key: ValueKey('crop-preview'),
+                          behavior: HitTestBehavior.opaque,
+                          onPointerDown: (event) =>
+                              _startPointer(event, constraints.biggest),
+                          onPointerMove: _movePointer,
+                          onPointerUp: _endPointer,
+                          onPointerCancel: _cancelPointer,
+                          child: ClipRect(
+                            child: CustomPaint(
+                              size: constraints.biggest,
+                              painter: _CropPainter(
+                                _image!,
+                                _visualState,
+                                _camera,
                               ),
                             ),
                           ),
                         ),
-                        SizedBox(
-                          height: controlsHeight,
-                          child: ColoredBox(
-                            color: _panel,
-                            child: SingleChildScrollView(child: _controls()),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-      ),
-    ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: controlsHeight,
+                      child: ColoredBox(
+                        color: _panel,
+                        child: SingleChildScrollView(child: _controls()),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
   );
+  @override
+  Widget build(BuildContext context) => widget.embedded
+      ? _editor()
+      : PopScope<String>(
+          canPop: _allowExit,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) _back();
+          },
+          child: Scaffold(
+            backgroundColor: _background,
+            appBar: AppBar(
+              backgroundColor: _background,
+              surfaceTintColor: Colors.transparent,
+              foregroundColor: _colors.onSurface,
+              leading: BackButton(onPressed: _saving ? null : _back),
+              actions: [
+                TextButton(
+                  key: ValueKey('crop-complete'),
+                  onPressed: _dirty && !_saving && _gestureBase == null
+                      ? _complete
+                      : null,
+                  style: TextButton.styleFrom(
+                    foregroundColor: _blue,
+                    disabledForegroundColor: _colors.onSurface.withValues(
+                      alpha: 0.45,
+                    ),
+                  ),
+                  child: _saving
+                      ? SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: _colors.onSurface,
+                          ),
+                        )
+                      : Text('完成'),
+                ),
+                SizedBox(width: 8),
+              ],
+            ),
+            body: _editor(),
+          ),
+        );
 
   Widget _controls() => Center(
     child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 680),
+      constraints: BoxConstraints(maxWidth: 680),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: EdgeInsets.symmetric(vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -419,13 +484,15 @@ class _CropImagePageState extends State<CropImagePage>
                 children: [
                   Row(
                     children: [
-                      const SizedBox(width: 12),
+                      SizedBox(width: 12),
                       IconButton(
                         tooltip: '撤销',
                         onPressed: _historyIndex > 0 ? () => _undo(-1) : null,
                         color: _gray,
-                        disabledColor: const Color(0xFF555555),
-                        icon: const Icon(Icons.undo),
+                        disabledColor: _colors.onSurface.withValues(
+                          alpha: 0.38,
+                        ),
+                        icon: Icon(Icons.undo),
                       ),
                       IconButton(
                         tooltip: '恢复',
@@ -433,8 +500,10 @@ class _CropImagePageState extends State<CropImagePage>
                             ? () => _undo(1)
                             : null,
                         color: _gray,
-                        disabledColor: const Color(0xFF555555),
-                        icon: const Icon(Icons.redo),
+                        disabledColor: _colors.onSurface.withValues(
+                          alpha: 0.38,
+                        ),
+                        icon: Icon(Icons.redo),
                       ),
                     ],
                   ),
@@ -442,15 +511,15 @@ class _CropImagePageState extends State<CropImagePage>
                     TextButton(
                       onPressed: () => _change((_) => _initial),
                       style: TextButton.styleFrom(
-                        foregroundColor: Colors.white,
+                        foregroundColor: _colors.onSurface,
                       ),
-                      child: const Text('重置'),
+                      child: Text('重置'),
                     ),
                 ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
                   _circleButton(
@@ -463,25 +532,29 @@ class _CropImagePageState extends State<CropImagePage>
                       children: [
                         Text(
                           '${_state!.tilt.round()}°',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: _colors.onSurface,
                             fontSize: 14,
                           ),
                         ),
                         SliderTheme(
                           data: SliderTheme.of(context).copyWith(
-                            activeTrackColor: const Color(0xFF777777),
-                            inactiveTrackColor: const Color(0xFF555555),
+                            activeTrackColor: _colors.outline,
+                            inactiveTrackColor: _colors.onSurface.withValues(
+                              alpha: 0.38,
+                            ),
                             thumbColor: _blue,
-                            overlayColor: Colors.white.withValues(alpha: 0.08),
+                            overlayColor: _colors.onSurface.withValues(
+                              alpha: 0.08,
+                            ),
                             trackHeight: 2,
-                            thumbShape: const RoundSliderThumbShape(
+                            thumbShape: RoundSliderThumbShape(
                               enabledThumbRadius: 6,
                             ),
                             showValueIndicator: ShowValueIndicator.never,
                           ),
                           child: Slider(
-                            key: const ValueKey('crop-tilt'),
+                            key: ValueKey('crop-tilt'),
                             label: '倾斜角度',
                             min: -45,
                             max: 45,
@@ -518,18 +591,15 @@ class _CropImagePageState extends State<CropImagePage>
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             SizedBox(
               height: 82,
               child: ListView.separated(
-                key: const ValueKey('crop-ratios'),
+                key: ValueKey('crop-ratios'),
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 itemCount: cropRatios.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final label = cropRatios.keys.elementAt(index);
                   final selected = _state!.ratio == label;
@@ -555,7 +625,7 @@ class _CropImagePageState extends State<CropImagePage>
                             Container(
                               width: 56,
                               height: 48,
-                              padding: const EdgeInsets.all(5),
+                              padding: EdgeInsets.all(5),
                               decoration: BoxDecoration(
                                 border: Border.all(
                                   color: selected ? _blue : Colors.transparent,
@@ -568,19 +638,16 @@ class _CropImagePageState extends State<CropImagePage>
                                   width: ratio >= 1 ? 32 : 28 * ratio,
                                   height: ratio >= 1 ? 32 / ratio : 28,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF777777),
+                                    color: _colors.outline,
                                     borderRadius: BorderRadius.circular(3),
                                   ),
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 5),
+                            SizedBox(height: 5),
                             Text(
                               label,
-                              style: const TextStyle(
-                                color: _gray,
-                                fontSize: 12,
-                              ),
+                              style: TextStyle(color: _gray, fontSize: 12),
                             ),
                           ],
                         ),
@@ -601,10 +668,10 @@ class _CropImagePageState extends State<CropImagePage>
         tooltip: tooltip,
         onPressed: onPressed,
         style: IconButton.styleFrom(
-          backgroundColor: const Color(0xFF383838),
+          backgroundColor: _colors.surfaceContainerHighest,
           foregroundColor: _gray,
-          shape: const CircleBorder(),
-          minimumSize: const Size.square(44),
+          shape: CircleBorder(),
+          minimumSize: Size.square(44),
         ),
         icon: Icon(icon, size: 23),
       );
@@ -650,13 +717,9 @@ class _CropPainter extends CustomPainter {
     canvas.translate(size.width / 2, size.height / 2);
     canvas.scale(view.scale);
     canvas.translate(-camera.center.dx, -camera.center.dy);
+    canvas.clipRect(state.crop);
     paintCropImage(canvas, image, state);
     canvas.restore();
-    final mask = Path()
-      ..fillType = PathFillType.evenOdd
-      ..addRect(Offset.zero & size)
-      ..addRect(crop);
-    canvas.drawPath(mask, Paint()..color = const Color(0xA6171717));
     final grid = Paint()
       ..color = const Color(0x70FFFFFF)
       ..strokeWidth = 0.7;

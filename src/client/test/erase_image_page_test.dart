@@ -1,3 +1,6 @@
+import 'package:velax/features/wardrobe/crop_image_page.dart';
+import 'package:velax/features/wardrobe/edit_image_page.dart';
+
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -52,6 +55,30 @@ void main() {
     },
   );
 
+  test(
+    'erased edge updates output bounds and empty images stay valid',
+    () async {
+      final strokes = [
+        EraseStroke([const Offset(0, -100), const Offset(0, 300)], 100),
+      ];
+      final bounds = await erasedContentBounds(image, strokes);
+      expect(bounds, const Rect.fromLTRB(50, 0, 200, 200));
+      final codec = await ui.instantiateImageCodec(
+        await renderErasedImage(image, strokes, bounds: bounds),
+      );
+      final result = (await codec.getNextFrame()).image;
+      expect(result.width, 150);
+      expect(result.height, 200);
+      result.dispose();
+      codec.dispose();
+      expect(
+        await erasedContentBounds(image, [
+          EraseStroke([const Offset(100, 100)], 1000),
+        ]),
+        const Rect.fromLTWH(0, 0, 200, 200),
+      );
+    },
+  );
   Future<void> open(WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(home: EraseImagePage(imagePath: source.path)),
@@ -92,19 +119,28 @@ void main() {
       await tester.pump();
       expect(enabled(tester), isTrue);
       expect(find.text('重置'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('erase-apply')));
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('erase-apply')));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
       await tester.pump();
       expect(enabled(tester), isFalse);
-      await tester.tap(find.byTooltip('撤销'));
+      await tester.tap(
+        find.byWidgetPredicate((w) => w is IconButton && w.tooltip == '撤销'),
+      );
       await tester.pump();
       expect(enabled(tester), isTrue);
-      await tester.tap(find.byTooltip('恢复'));
+      await tester.tap(
+        find.byWidgetPredicate((w) => w is IconButton && w.tooltip == '恢复'),
+      );
       await tester.pump();
       expect(enabled(tester), isFalse);
       await tester.tap(find.text('重置'));
       await tester.pump();
       expect(find.text('重置'), findsNothing);
-      await tester.tap(find.byTooltip('撤销'));
+      await tester.tap(
+        find.byWidgetPredicate((w) => w is IconButton && w.tooltip == '撤销'),
+      );
       await tester.pump();
       expect(find.text('重置'), findsOneWidget);
     },
@@ -147,4 +183,198 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'integrated editor defaults to crop and keeps erase action visible',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: EditImagePage(imagePath: source.path)),
+      );
+      for (
+        var i = 0;
+        i < 100 &&
+            find.byKey(const ValueKey('crop-preview')).evaluate().isEmpty;
+        i++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+      expect(find.byKey(const ValueKey('crop-preview')), findsOneWidget);
+      expect(
+        tester
+            .widget<TextButton>(find.byKey(const ValueKey('edit-image-next')))
+            .onPressed,
+        isNotNull,
+      );
+      expect(find.byTooltip('一键抠图'), findsNothing);
+      await tester.tap(find.text('擦除'));
+      for (
+        var i = 0;
+        i < 100 &&
+            find.byKey(const ValueKey('erase-preview')).evaluate().isEmpty;
+        i++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+      expect(find.byKey(const ValueKey('erase-apply')), findsOneWidget);
+      expect(enabled(tester), isFalse);
+      expect(find.byTooltip('一键抠图'), findsOneWidget);
+      expect(
+        tester.getCenter(find.byKey(const ValueKey('erase-apply'))).dy,
+        lessThan(
+          tester.getCenter(find.byKey(const ValueKey('erase-brush'))).dy,
+        ),
+      );
+      await tester.dragFrom(
+        tester.getCenter(find.byKey(const ValueKey('erase-preview'))),
+        const Offset(30, 0),
+      );
+      await tester.pump();
+      expect(enabled(tester), isTrue);
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('erase-apply')));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump();
+      expect(find.byKey(const ValueKey('erase-apply')), findsOneWidget);
+      expect(enabled(tester), isFalse);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  for (final brightness in Brightness.values) {
+    testWidgets(
+      'theme and persistent controls in $brightness; switching retains state',
+      (tester) async {
+        final theme = ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.teal,
+            brightness: brightness,
+          ),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: theme,
+            home: EditImagePage(imagePath: source.path),
+          ),
+        );
+        for (var i = 0; i < 100; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 20)),
+          );
+          await tester.pump();
+          if (find
+                  .byKey(const ValueKey('crop-preview'), skipOffstage: false)
+                  .evaluate()
+                  .isNotEmpty &&
+              find
+                  .byKey(const ValueKey('erase-preview'), skipOffstage: false)
+                  .evaluate()
+                  .isNotEmpty) {
+            break;
+          }
+        }
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+          theme.colorScheme.surface,
+        );
+        final crop = tester.state<CropImagePageState>(
+          find.byType(CropImagePage),
+        );
+        await tester.tap(find.text('擦除'));
+        await tester.pumpAndSettle();
+        final erase = tester.state<EraseImagePageState>(
+          find.byType(EraseImagePage),
+        );
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(
+          tester
+              .widget<NavigationBar>(find.byType(NavigationBar))
+              .selectedIndex,
+          1,
+        );
+        for (final tooltip in ['撤销', '恢复']) {
+          final button = tester.widget<IconButton>(
+            find.byWidgetPredicate(
+              (w) => w is IconButton && w.tooltip == tooltip,
+            ),
+          );
+          expect(button.onPressed, isNull);
+          expect(
+            button.disabledColor,
+            theme.colorScheme.onSurface.withValues(alpha: 0.45),
+          );
+        }
+        expect(
+          find.byKey(const ValueKey('erase-apply')).hitTestable(),
+          findsOneWidget,
+        );
+        expect(enabled(tester), isFalse);
+        expect(
+          find.byKey(const ValueKey('erase-cutout')).hitTestable(),
+          findsOneWidget,
+        );
+        await tester.dragFrom(
+          tester.getCenter(find.byKey(const ValueKey('erase-preview'))),
+          const Offset(30, 0),
+        );
+        await tester.pump();
+        expect(enabled(tester), isTrue);
+        expect(
+          tester
+              .widget<IconButton>(
+                find.byWidgetPredicate(
+                  (w) => w is IconButton && w.tooltip == '撤销',
+                ),
+              )
+              .onPressed,
+          isNotNull,
+        );
+        await tester.tap(find.text('裁剪'));
+        await tester.pumpAndSettle();
+        expect(
+          tester.state<CropImagePageState>(find.byType(CropImagePage)),
+          same(crop),
+        );
+        await tester.tap(find.text('擦除'));
+        await tester.pumpAndSettle();
+        expect(
+          tester.state<EraseImagePageState>(find.byType(EraseImagePage)),
+          same(erase),
+        );
+        expect(enabled(tester), isTrue);
+        await tester.tap(
+          find.byWidgetPredicate((w) => w is IconButton && w.tooltip == '撤销'),
+        );
+        await tester.pump();
+        expect(enabled(tester), isFalse);
+        expect(
+          tester
+              .widget<IconButton>(
+                find.byWidgetPredicate(
+                  (w) => w is IconButton && w.tooltip == '恢复',
+                ),
+              )
+              .onPressed,
+          isNotNull,
+        );
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(
+          tester
+              .widget<NavigationBar>(find.byType(NavigationBar))
+              .selectedIndex,
+          1,
+        );
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
 }

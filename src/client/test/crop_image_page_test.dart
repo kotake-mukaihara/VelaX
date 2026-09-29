@@ -476,19 +476,15 @@ void main() {
       );
       screenshot.dispose();
     });
-    await tester.tap(find.text('完成'));
-    for (
-      var i = 0;
-      i < 100 && find.byType(CropImagePage).evaluate().isNotEmpty;
-      i++
-    ) {
+    await tester.tap(find.text('下一步'));
+    for (var i = 0; i < 100 && find.byType(Image).evaluate().isEmpty; i++) {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 20)),
       );
       await tester.pump(const Duration(milliseconds: 20));
     }
     await tester.pumpAndSettle();
-    expect(find.byType(CropImagePage), findsNothing);
+    expect(find.text('下一步'), findsNothing);
     final provider =
         tester.widget<Image>(find.byType(Image)).image as FileImage;
     expect(provider.file.path, isNot(source.path));
@@ -502,8 +498,6 @@ void main() {
       output.dispose();
       codec.dispose();
     });
-    await tester.tap(find.text('下一步'));
-    await tester.pumpAndSettle();
     expect(
       (tester.widget<Image>(find.byType(Image).last).image as FileImage)
           .file
@@ -511,6 +505,11 @@ void main() {
       provider.file.path,
     );
     expect(tester.takeException(), isNull);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 20)),
