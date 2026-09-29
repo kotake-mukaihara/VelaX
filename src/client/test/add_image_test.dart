@@ -67,7 +67,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(picker.source, source);
       expect(find.text('编辑图片'), findsOneWidget);
-      for (final text in ['裁剪', '擦除', '抠图', '下一步']) {
+      for (final text in ['裁剪', '擦除', '一键抠图', '下一步']) {
         expect(find.text(text), findsOneWidget);
       }
       await tester.tap(find.byType(BackButton));

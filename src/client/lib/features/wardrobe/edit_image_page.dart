@@ -134,7 +134,7 @@ class _EditImagePageState extends State<EditImagePage> {
                           for (final action in [
                             ('裁剪', Icons.crop),
                             ('擦除', Icons.auto_fix_normal_outlined),
-                            ('抠图', Icons.content_cut),
+                            ('一键抠图', Icons.content_cut),
                           ])
                             Expanded(
                               child: TextButton(
