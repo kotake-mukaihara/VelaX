@@ -29,7 +29,7 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         const Text(
           '我的',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 24),
         _group([
@@ -108,7 +108,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _group(List<Widget> children) => Material(
     color: Theme.of(context).colorScheme.surfaceContainerLow,
-    borderRadius: BorderRadius.circular(20),
+    borderRadius: BorderRadius.circular(16),
     clipBehavior: Clip.antiAlias,
     child: Column(children: children),
   );

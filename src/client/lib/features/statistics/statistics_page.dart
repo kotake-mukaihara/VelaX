@@ -22,6 +22,14 @@ class StatisticsPage extends StatefulWidget {
 class _StatisticsPageState extends State<StatisticsPage> {
   late Future<(List<ClothingItem>, List<Category>)> _data = _load();
   Category? _selectedCategory;
+  // Keep chart colors independent of the UI theme and stable during drill-down.
+  final List<Color> _categoryPalette = [..._palette]..shuffle(math.Random());
+  final Map<String, Color> _categoryColors = {};
+
+  Color _categoryColor(String id) => _categoryColors.putIfAbsent(
+    id,
+    () => _categoryPalette[_categoryColors.length % _categoryPalette.length],
+  );
 
   Future<(List<ClothingItem>, List<Category>)> _load() async {
     final items = await widget.loadItems();
@@ -83,7 +91,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
               ids[i],
               byId[ids[i]]?.name ?? '未知品类',
               categoryCounts[ids[i]]!,
-              _palette[i % _palette.length],
+              _categoryColor(ids[i]),
             ),
         ];
         final colors = <String, _Slice>{};
@@ -147,6 +155,15 @@ class _StatisticsPageState extends State<StatisticsPage> {
                       ? null
                       : IconButton(
                           tooltip: '返回一级品类',
+                          iconSize: 20,
+                          padding: const EdgeInsets.all(6),
+                          constraints: const BoxConstraints.tightFor(
+                            width: 32,
+                            height: 32,
+                          ),
+                          style: IconButton.styleFrom(
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
                           icon: const Icon(Icons.arrow_back),
                           onPressed: () =>
                               setState(() => _selectedCategory = null),
@@ -184,26 +201,32 @@ class _StatisticsPageState extends State<StatisticsPage> {
                           children: [
                             for (final brand in brands.values)
                               Container(
-                                padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: scheme.surface,
-                                  borderRadius: BorderRadius.circular(12),
+                                  color: scheme.secondaryContainer,
+                                  borderRadius: BorderRadius.circular(99),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Flexible(child: Text(brand.$1)),
+                                    Flexible(
+                                      child: Text(
+                                        brand.$1,
+                                        style: TextStyle(
+                                          color: scheme.onSecondaryContainer,
+                                        ),
+                                      ),
+                                    ),
                                     const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 9,
-                                        vertical: 2,
+                                    Text(
+                                      '${brand.$2}',
+                                      style: TextStyle(
+                                        color: scheme.onSecondaryContainer,
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                      decoration: BoxDecoration(
-                                        color: scheme.secondaryContainer,
-                                        borderRadius: BorderRadius.circular(99),
-                                      ),
-                                      child: Text('${brand.$2}'),
                                     ),
                                   ],
                                 ),
@@ -228,26 +251,35 @@ class _StatisticsPageState extends State<StatisticsPage> {
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
       color: Theme.of(context).colorScheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
+        SizedBox(
+          // Reserve the action's height before drilling into a category.
+          height: math.max(
+            32,
+            MediaQuery.textScalerOf(context).scale(17) * 1.5,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
-            ?action,
-          ],
+              ?action,
+            ],
+          ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
         child,
       ],
     ),
@@ -306,18 +338,19 @@ class _PieChart extends StatelessWidget {
                             final offset =
                                 details.localPosition -
                                 Offset(size / 2, size / 2);
-                            if (offset.distance > size / 2) return;
-                            final angle =
-                                (math.atan2(offset.dy, offset.dx) +
-                                    math.pi / 2) %
-                                (2 * math.pi);
-                            var end = 0.0;
+                            var start = 0.0;
                             for (final slice in slices) {
-                              end += slice.count / total * math.pi * 2;
-                              if (angle < end) {
+                              final sweep = slice.count / total * math.pi * 2;
+                              if (_ringSlicePath(
+                                size / 2,
+                                start,
+                                sweep,
+                                slices.length,
+                              ).contains(offset)) {
                                 onSelect!(slice);
                                 return;
                               }
+                              start -= sweep;
                             }
                           },
                     child: CustomPaint(painter: _PiePainter(slices, total)),
@@ -374,6 +407,38 @@ class _PieChart extends StatelessWidget {
   }
 }
 
+const _innerRadiusRatio = .38;
+const _segmentGapWidth = 3.0;
+
+// Subtract parallel-sided strips, rather than angular wedges, so the gap
+// has the same physical width at both the inner and outer edges.
+Path _ringSlicePath(double radius, double start, double sweep, int count) {
+  final outer = Rect.fromCircle(center: Offset.zero, radius: radius);
+  final sector = count == 1
+      ? (Path()..addOval(outer))
+      : (Path()
+          ..moveTo(0, 0)
+          ..arcTo(outer, start, -sweep, false)
+          ..close());
+  final hole = Path()
+    ..addOval(
+      Rect.fromCircle(center: Offset.zero, radius: radius * _innerRadiusRatio),
+    );
+  var ring = Path.combine(PathOperation.difference, sector, hole);
+  if (count > 1) {
+    for (final angle in [start, start - sweep]) {
+      final direction = Offset(math.cos(angle), math.sin(angle));
+      final normal =
+          Offset(-direction.dy, direction.dx) * (_segmentGapWidth / 2);
+      final end = direction * (radius + _segmentGapWidth);
+      final strip = Path()
+        ..addPolygon([normal, end + normal, end - normal, -normal], true);
+      ring = Path.combine(PathOperation.difference, ring, strip);
+    }
+  }
+  return ring;
+}
+
 class _PiePainter extends CustomPainter {
   _PiePainter(this.slices, this.total);
   final List<_Slice> slices;
@@ -383,14 +448,14 @@ class _PiePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
     final radius = size.shortestSide / 2;
-    var start = -math.pi / 2;
+    final innerRadius = radius * _innerRadiusRatio;
+    final strokeWidth = radius - innerRadius;
+    final ringRadius = (radius + innerRadius) / 2;
+    var start = 0.0;
     for (final slice in slices) {
       final sweep = slice.count / total * math.pi * 2;
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        start,
-        sweep,
-        true,
+      canvas.drawPath(
+        _ringSlicePath(radius, start, sweep, slices.length).shift(center),
         Paint()..color = slice.color,
       );
       final percent = slice.count / total * 100;
@@ -408,16 +473,20 @@ class _PiePainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      final position = slices.length == 1
-          ? center
-          : center +
-                Offset(
-                      math.cos(start + sweep / 2),
-                      math.sin(start + sweep / 2),
-                    ) *
-                    (radius * .68);
-      text.paint(canvas, position - Offset(text.width / 2, text.height / 2));
-      start += sweep;
+      final visible = math.max(
+        0.0,
+        sweep - (slices.length > 1 ? _segmentGapWidth / ringRadius : 0),
+      );
+      final middle = start - sweep / 2;
+      final position =
+          center + Offset(math.cos(middle), math.sin(middle)) * ringRadius;
+      // Small segments remain readable through the legend and semantics.
+      if (visible * ringRadius > text.width + 8 &&
+          strokeWidth > text.height + 4) {
+        text.paint(canvas, position - Offset(text.width / 2, text.height / 2));
+      }
+      text.dispose();
+      start -= sweep;
     }
   }
 

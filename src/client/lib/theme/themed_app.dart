@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'wardrobe_theme.dart';
+
 /// Keeps the selected mode above the navigator so every route shares it.
 class ThemedApp extends StatefulWidget {
   const ThemedApp({super.key, required this.home});
@@ -24,18 +26,8 @@ class _ThemedAppState extends State<ThemedApp> {
           : 'VelaX',
       debugShowCheckedModeBanner: false,
       themeMode: _mode,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF65745B)),
-        scaffoldBackgroundColor: const Color(0xFFFAF9F6),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF65745B),
-          brightness: Brightness.dark,
-        ),
-      ),
+      theme: wardrobeTheme(Brightness.light),
+      darkTheme: wardrobeTheme(Brightness.dark),
       home: widget.home,
     ),
   );

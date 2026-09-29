@@ -22,18 +22,25 @@ class BackupPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF3CD),
-                  border: Border.all(color: const Color(0xFFFFD58A)),
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded, color: Color(0xFFC47B16)),
+                    Icon(
+                      Icons.info_outline,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         '当前暂不支持云同步',
-                        style: TextStyle(color: Color(0xFF895510)),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   ],

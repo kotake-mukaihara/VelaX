@@ -186,10 +186,11 @@ class _HomePageState extends State<HomePage> {
       final wide = constraints.maxWidth >= 800;
       return Scaffold(
         floatingActionButton: _selectedIndex == 1
-            ? FloatingActionButton(
+            ? FloatingActionButton.extended(
                 tooltip: '添加单品',
                 onPressed: _picking ? null : _addPhoto,
-                child: const Icon(Icons.add),
+                icon: const Icon(Icons.add),
+                label: const Text('添加单品'),
               )
             : null,
         body: SafeArea(
@@ -201,6 +202,14 @@ class _HomePageState extends State<HomePage> {
                   backgroundColor: Theme.of(context)
                       .colorScheme
                       .surfaceContainerLow,
+                  leading: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 28),
+                    child: Icon(
+                      Icons.checkroom_outlined,
+                      size: 30,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
                   selectedIndex: _selectedIndex,
                   onDestinationSelected: _selectTab,
                   labelType: constraints.maxWidth >= 1100
@@ -261,10 +270,26 @@ class _HomePageState extends State<HomePage> {
                     : const EdgeInsets.fromLTRB(24, 32, 24, 32),
                 children: [
                   const Text(
-                    '栖色 Velax',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
+                    '栖色 VelaX',
+                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 8),
+                  Text(
+                    '让每一件喜欢的衣物，都有自己的位置。',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton.icon(
+                      onPressed: _picking ? null : _addPhoto,
+                      icon: const Icon(Icons.add, size: 20),
+                      label: const Text('添加单品'),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
                   if (snapshot.connectionState == ConnectionState.waiting)
                     const Padding(
                       padding: EdgeInsets.all(32),
@@ -301,7 +326,7 @@ class _HomePageState extends State<HomePage> {
                           color: Theme.of(context)
                               .colorScheme
                               .surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Column(
                           children: [
@@ -433,8 +458,8 @@ class _Overview extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
     decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.secondaryContainer,
-      borderRadius: BorderRadius.circular(24),
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(16),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -477,9 +502,7 @@ class _Overview extends StatelessWidget {
                     Text(
                       entry.$1,
                       style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSecondaryContainer,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],

@@ -55,25 +55,15 @@ class _WardrobePageState extends State<WardrobePage> {
   Widget build(BuildContext context) => Column(
     children: [
       Padding(
-        padding: EdgeInsets.fromLTRB(widget.wide ? 40 : 24, 20, 12, 16),
+        padding: EdgeInsets.fromLTRB(widget.wide ? 40 : 24, 32, 24, 24),
         child: Row(
           children: [
             const Expanded(
               child: Text(
                 '我的衣橱',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
               ),
             ),
-            for (final action in [
-              ('筛选', Icons.filter_alt_outlined),
-              ('分类', Icons.category_outlined),
-              ('更多', Icons.more_horiz),
-            ])
-              IconButton(
-                tooltip: action.$1,
-                onPressed: null,
-                icon: Icon(action.$2),
-              ),
           ],
         ),
       ),
@@ -227,11 +217,19 @@ class _CategoryHeading extends StatelessWidget {
         ),
       ),
       const SizedBox(width: 10),
-      Text(
-        '$count',
-        style: TextStyle(
-          fontSize: primary ? 18 : 14,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(99),
+        ),
+        child: Text(
+          '$count',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
+          ),
         ),
       ),
     ],
@@ -260,7 +258,7 @@ class _PhotoStrip extends StatelessWidget {
             onTap: onOpenItem == null ? null : () => onOpenItem!(items[index]),
             child: ClipRRect(
               key: ValueKey('wardrobe-photo-${items[index].id}'),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(10),
               child: Image.file(
                 File(items[index].image),
                 width: 132,

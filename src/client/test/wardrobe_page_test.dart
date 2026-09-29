@@ -50,7 +50,7 @@ void main() {
     expect(find.text('8'), findsNWidgets(2));
     expect(find.text('空品类'), findsNothing);
     for (final label in ['筛选', '分类', '更多']) {
-      expect(find.byTooltip(label), findsOneWidget);
+      expect(find.byTooltip(label), findsNothing);
     }
     final newest = find.byKey(const ValueKey('wardrobe-photo-7'));
     final next = find.byKey(const ValueKey('wardrobe-photo-6'));

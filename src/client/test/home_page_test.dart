@@ -47,7 +47,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('首页'));
     await tester.pumpAndSettle();
-    expect(find.text('栖色 Velax'), findsOneWidget);
+    expect(find.text('栖色 VelaX'), findsOneWidget);
     tester.view.physicalSize = const Size(800, 600);
     await tester.pumpAndSettle();
     expect(find.byType(NavigationRail), findsOneWidget);
@@ -59,7 +59,7 @@ void main() {
       ThemedApp(home: HomePage(loadItems: () async => [])),
     );
     await tester.pumpAndSettle();
-    expect(find.text('栖色 Velax'), findsOneWidget);
+    expect(find.text('栖色 VelaX'), findsOneWidget);
     expect(find.text('0'), findsNWidgets(4));
     expect(find.text('还没有衣物'), findsOneWidget);
     await tester.tap(find.byTooltip('查看衣橱数据'));
