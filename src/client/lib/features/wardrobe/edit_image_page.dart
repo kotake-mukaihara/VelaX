@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'crop_image_page.dart';
+import 'erase_image_page.dart';
+import 'checkerboard_painter.dart';
 import 'edit_item_page.dart';
 import 'item_options.dart';
 
@@ -22,9 +24,13 @@ class _EditImagePageState extends State<EditImagePage> {
   late String _imagePath = widget.imagePath;
   final _temporaryImages = <String>[];
 
-  Future<void> _crop() async {
+  Future<void> _edit({bool erase = false}) async {
     final result = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => CropImagePage(imagePath: _imagePath)),
+      MaterialPageRoute(
+        builder: (_) => erase
+            ? EraseImagePage(imagePath: _imagePath)
+            : CropImagePage(imagePath: _imagePath),
+      ),
     );
     if (result == null) return;
     if (!mounted) {
@@ -106,7 +112,7 @@ class _EditImagePageState extends State<EditImagePage> {
                     child: SizedBox.expand(
                       child: ClipRect(
                         child: CustomPaint(
-                          painter: const _CheckerboardPainter(),
+                          painter: const CheckerboardPainter(),
                           child: Image.file(
                             File(_imagePath),
                             fit: BoxFit.contain,
@@ -132,7 +138,11 @@ class _EditImagePageState extends State<EditImagePage> {
                           ])
                             Expanded(
                               child: TextButton(
-                                onPressed: action.$1 == '裁剪' ? _crop : null,
+                                onPressed: action.$1 == '裁剪'
+                                    ? () => _edit()
+                                    : action.$1 == '擦除'
+                                    ? () => _edit(erase: true)
+                                    : null,
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -177,33 +187,4 @@ class _EditImagePageState extends State<EditImagePage> {
       ),
     ),
   );
-}
-
-/// Draw the transparency grid as vector rectangles at any preview size.
-class _CheckerboardPainter extends CustomPainter {
-  const _CheckerboardPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const cellSize = 12.0;
-    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
-    final gray = Paint()
-      ..color = const Color(0xFFE0E0E0)
-      ..isAntiAlias = false;
-    for (var row = 0; row < (size.height / cellSize).ceil(); row++) {
-      for (
-        var column = row % 2;
-        column < (size.width / cellSize).ceil();
-        column += 2
-      ) {
-        canvas.drawRect(
-          Rect.fromLTWH(column * cellSize, row * cellSize, cellSize, cellSize),
-          gray,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_CheckerboardPainter oldDelegate) => false;
 }
