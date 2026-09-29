@@ -11,6 +11,7 @@ import '../wardrobe/edit_image_page.dart';
 import '../wardrobe/item_options.dart';
 import '../wardrobe/item_detail_page.dart';
 import '../profile/profile_page.dart';
+import '../statistics/statistics_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -170,6 +171,15 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  void _openStatistics() => Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      builder: (_) => StatisticsPage(
+        loadItems: widget.loadItems,
+        loadCategories: widget.loadCategories ?? widget.itemOptions?.categories,
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
@@ -271,7 +281,7 @@ class _HomePageState extends State<HomePage> {
                       ],
                     )
                   else ...[
-                    _Overview(items: items, onOpen: () => _selectTab(1)),
+                    _Overview(items: items, onOpen: _openStatistics),
                     const SizedBox(height: 32),
                     const Text(
                       '最近添加',
@@ -383,7 +393,7 @@ class _HomePageState extends State<HomePage> {
           wide: wide,
           onOpenItem: _openItem,
         )
-      : ProfilePage(wide: wide);
+      : ProfilePage(wide: wide, onOpenStatistics: _openStatistics);
 
   Widget _buildBottomNavigation() => NavigationBar(
     selectedIndex: _selectedIndex,
@@ -439,7 +449,7 @@ class _Overview extends StatelessWidget {
             ),
             IconButton(
               onPressed: onOpen,
-              tooltip: '查看衣橱',
+              tooltip: '查看衣橱数据',
               icon: const Icon(Icons.chevron_right),
             ),
           ],

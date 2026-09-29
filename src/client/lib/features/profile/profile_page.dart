@@ -4,9 +4,10 @@ import 'backup_page.dart';
 import '../../theme/themed_app.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key, this.wide = false});
+  const ProfilePage({super.key, this.wide = false, this.onOpenStatistics});
 
   final bool wide;
+  final VoidCallback? onOpenStatistics;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -32,11 +33,15 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         const SizedBox(height: 24),
         _group([
-          const ListTile(
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            leading: Icon(Icons.bar_chart_outlined),
-            title: Text('查看衣橱数据'),
-            trailing: Icon(Icons.chevron_right),
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
+            leading: const Icon(Icons.bar_chart_outlined),
+            title: const Text('查看衣橱数据'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: widget.onOpenStatistics,
           ),
         ]),
         const SizedBox(height: 20),

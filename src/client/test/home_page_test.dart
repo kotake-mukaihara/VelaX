@@ -22,6 +22,13 @@ void main() {
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.text('查看衣橱数据'), findsOneWidget);
+    await tester.tap(find.text('查看衣橱数据'));
+    await tester.pumpAndSettle();
+    expect(find.text('数据统计'), findsOneWidget);
+    expect(find.text('风格画像'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('查看衣橱数据'), findsOneWidget);
     expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
     await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
@@ -55,9 +62,11 @@ void main() {
     expect(find.text('栖色 Velax'), findsOneWidget);
     expect(find.text('0'), findsNWidgets(4));
     expect(find.text('还没有衣物'), findsOneWidget);
-    await tester.tap(find.byTooltip('查看衣橱'));
+    await tester.tap(find.byTooltip('查看衣橱数据'));
     await tester.pumpAndSettle();
-    expect(find.text('我的衣橱'), findsOneWidget);
+    expect(find.text('数据统计'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
     await tester.tap(find.text('首页'));
     await tester.pumpAndSettle();
     expect(find.text('最近添加'), findsOneWidget);
