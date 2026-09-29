@@ -188,7 +188,9 @@ class _HomePageState extends State<HomePage> {
               if (wide) ...[
                 NavigationRail(
                   extended: constraints.maxWidth >= 1100,
-                  backgroundColor: Colors.white,
+                  backgroundColor: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerLow,
                   selectedIndex: _selectedIndex,
                   onDestinationSelected: _selectTab,
                   labelType: constraints.maxWidth >= 1100
@@ -286,15 +288,17 @@ class _HomePageState extends State<HomePage> {
                           horizontal: 20,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerLow,
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Column(
+                        child: Column(
                           children: [
                             Icon(
                               Icons.checkroom_outlined,
                               size: 36,
-                              color: Color(0xFF87917F),
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                             SizedBox(height: 12),
                             Text('还没有衣物'),
@@ -302,7 +306,11 @@ class _HomePageState extends State<HomePage> {
                             Text(
                               '添加后，最近的衣物照片会出现在这里',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.black54),
+                              style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
                             ),
                           ],
                         ),
@@ -340,12 +348,16 @@ class _HomePageState extends State<HomePage> {
                                       cacheWidth: 400,
                                       errorBuilder: (_, _, _) => Container(
                                         width: photoWidth,
-                                        color: const Color(0xFFEDEEE8),
-                                        child: const Center(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerHighest,
+                                        child: Center(
                                           child: Icon(
                                             Icons.broken_image_outlined,
                                             semanticLabel: '照片无法读取',
-                                            color: Colors.black38,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
                                           ),
                                         ),
                                       ),
@@ -376,7 +388,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildBottomNavigation() => NavigationBar(
     selectedIndex: _selectedIndex,
     onDestinationSelected: _selectTab,
-    backgroundColor: Colors.white,
+    backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
     destinations: const [
       NavigationDestination(
         icon: Icon(Icons.home_outlined),
@@ -411,7 +423,7 @@ class _Overview extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
     decoration: BoxDecoration(
-      color: const Color(0xFFEDEFE7),
+      color: Theme.of(context).colorScheme.secondaryContainer,
       borderRadius: BorderRadius.circular(24),
     ),
     child: Column(
@@ -454,7 +466,11 @@ class _Overview extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       entry.$1,
-                      style: const TextStyle(color: Color(0xFF606756)),
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSecondaryContainer,
+                      ),
                     ),
                   ],
                 ),

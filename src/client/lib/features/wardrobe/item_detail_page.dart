@@ -111,7 +111,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: LayoutBuilder(
@@ -158,7 +158,7 @@ class _Attribute extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
     decoration: BoxDecoration(
-      color: const Color(0xFFF2F3ED),
+      color: Theme.of(context).colorScheme.surfaceContainer,
       borderRadius: BorderRadius.circular(12),
     ),
     child: Text.rich(

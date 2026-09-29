@@ -136,21 +136,25 @@ class _WardrobePageState extends State<WardrobePage> {
                     );
                   }
                   if (items.isEmpty) {
-                    return const Padding(
+                    return Padding(
                       padding: EdgeInsets.symmetric(vertical: 64),
                       child: Column(
                         children: [
                           Icon(
                             Icons.checkroom_outlined,
                             size: 40,
-                            color: Color(0xFF87917F),
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           SizedBox(height: 16),
                           Text('还没有衣物'),
                           SizedBox(height: 8),
                           Text(
                             '添加后，衣物会按品类展示在这里',
-                            style: TextStyle(color: Colors.black54),
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                           ),
                         ],
                       ),
@@ -227,7 +231,7 @@ class _CategoryHeading extends StatelessWidget {
         '$count',
         style: TextStyle(
           fontSize: primary ? 18 : 14,
-          color: const Color(0xFF72796B),
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     ],
@@ -265,12 +269,12 @@ class _PhotoStrip extends StatelessWidget {
                 cacheWidth: 400,
                 errorBuilder: (_, _, _) => Container(
                   width: 132,
-                  color: const Color(0xFFEDEEE8),
-                  child: const Center(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: Center(
                     child: Icon(
                       Icons.broken_image_outlined,
                       semanticLabel: '照片无法读取',
-                      color: Colors.black38,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),

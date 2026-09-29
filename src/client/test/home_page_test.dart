@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:velax/theme/themed_app.dart';
 import 'package:velax/features/home/home_page.dart';
 
 void main() {
@@ -9,7 +10,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
-      MaterialApp(home: HomePage(loadItems: () async => [])),
+      ThemedApp(home: HomePage(loadItems: () async => [])),
     );
     await tester.pumpAndSettle();
     expect(find.byType(NavigationRail), findsOneWidget);
@@ -48,7 +49,7 @@ void main() {
 
   testWidgets('empty wardrobe and overview navigation', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(home: HomePage(loadItems: () async => [])),
+      ThemedApp(home: HomePage(loadItems: () async => [])),
     );
     await tester.pumpAndSettle();
     expect(find.text('栖色 Velax'), findsOneWidget);

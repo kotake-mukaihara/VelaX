@@ -4,6 +4,7 @@ import 'data/database/app_database.dart';
 import 'data/repositories/clothing_item_repository.dart';
 import 'data/repositories/category_repository.dart';
 import 'features/home/home_page.dart';
+import 'theme/themed_app.dart';
 import 'data/repositories/brand_repository.dart';
 import 'data/repositories/color_repository.dart';
 import 'features/wardrobe/item_options.dart';
@@ -31,17 +32,7 @@ class _MainAppState extends State<MainApp> {
   }
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    onGenerateTitle: (context) =>
-        View.of(context).platformDispatcher.locale.languageCode == 'zh'
-            ? '栖色'
-            : 'VelaX',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF65745B)),
-      scaffoldBackgroundColor: const Color(0xFFFAF9F6),
-    ),
+  Widget build(BuildContext context) => ThemedApp(
     home: HomePage(
       loadItems: _items.items,
       itemOptions: ItemOptions(

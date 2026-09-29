@@ -173,7 +173,7 @@ class _EditItemPageState extends State<EditItemPage> {
                 ItemImagePreview(imagePath: widget.imagePath),
                 const SizedBox(height: 24),
                 Material(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(20),
                   clipBehavior: Clip.antiAlias,
                   child: Column(
@@ -213,7 +213,11 @@ class _EditItemPageState extends State<EditItemPage> {
                                   textAlign: TextAlign.end,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(color: Colors.black54),
+                                  style: TextStyle(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
                                 ),
                               ),
                             ],
@@ -229,7 +233,7 @@ class _EditItemPageState extends State<EditItemPage> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
@@ -595,7 +599,7 @@ class _OptionsSheetState extends State<_OptionsSheet> {
     decoration: BoxDecoration(
       shape: BoxShape.circle,
       color: Color(int.parse(color.hex.replaceFirst('#', 'FF'), radix: 16)),
-      border: Border.all(color: Colors.black26),
+      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
     ),
   );
 
@@ -624,7 +628,7 @@ class _OptionsSheetState extends State<_OptionsSheet> {
                       border: Border.all(
                         color: _slot == i
                             ? Theme.of(context).colorScheme.primary
-                            : Colors.black26,
+                            : Theme.of(context).colorScheme.outlineVariant,
                         width: _slot == i ? 2 : 1,
                       ),
                     ),
@@ -654,9 +658,12 @@ class _OptionsSheetState extends State<_OptionsSheet> {
         children: [
           const Text('颜色选项', style: TextStyle(fontWeight: FontWeight.w600)),
           if (_slot == null)
-            const Text(
+            Text(
               '请先选择要编辑的项目',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
         ],
       ),

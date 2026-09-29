@@ -14,7 +14,7 @@ class ItemImagePreview extends StatelessWidget {
         aspectRatio: 1,
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(24),
             boxShadow: const [
               BoxShadow(
