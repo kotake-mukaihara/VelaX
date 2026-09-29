@@ -72,7 +72,7 @@ void main() {
       }
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
-      expect(find.text('我的衣橱'), findsOneWidget);
+      expect(find.text('衣橱'), findsOneWidget);
       expect(find.text('从相册选择'), findsNothing);
       expect(find.byTooltip('添加单品'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -86,7 +86,7 @@ void main() {
     await openSheet(tester, picker, TargetPlatform.android);
     await tester.tap(find.text('从相册选择'));
     await tester.pumpAndSettle();
-    expect(find.text('我的衣橱'), findsOneWidget);
+    expect(find.text('衣橱'), findsOneWidget);
     expect(find.text('编辑图片'), findsNothing);
     picker.fail = true;
     await tester.tap(find.byTooltip('添加单品'));

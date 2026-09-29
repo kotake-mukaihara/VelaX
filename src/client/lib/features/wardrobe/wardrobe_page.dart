@@ -65,7 +65,7 @@ class _WardrobePageState extends State<WardrobePage> {
           children: [
             const Expanded(
               child: Text(
-                '我的衣橱',
+                '衣橱',
                 style: TextStyle(
                   fontSize: 28,
                   height: 1.4,
