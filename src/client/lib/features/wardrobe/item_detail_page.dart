@@ -33,6 +33,27 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     if (delete == null) return;
     setState(() => _deleting = true);
     try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('删除单品？'),
+          content: const Text('删除后数据不可恢复，确定要删除这个单品吗？'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('确认删除'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
       await delete(_item.id);
       if (!mounted) return;
       widget.onChanged?.call();

@@ -72,7 +72,16 @@ void main() {
       }
       await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
-      expect(find.text('衣橱'), findsOneWidget);
+      expect(find.text('放弃编辑？'), findsOneWidget);
+      await tester.tap(find.text('继续编辑'));
+      await tester.pumpAndSettle();
+      expect(find.text('编辑图片'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('放弃编辑？'), findsOneWidget);
+      await tester.tap(find.text('放弃编辑'));
+      await tester.pumpAndSettle();
+      expect(find.text('衣橱'), findsNWidgets(2));
       expect(find.text('从相册选择'), findsNothing);
       expect(find.byTooltip('添加单品'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -86,7 +95,7 @@ void main() {
     await openSheet(tester, picker, TargetPlatform.android);
     await tester.tap(find.text('从相册选择'));
     await tester.pumpAndSettle();
-    expect(find.text('衣橱'), findsOneWidget);
+    expect(find.text('衣橱'), findsNWidgets(2));
     expect(find.text('编辑图片'), findsNothing);
     picker.fail = true;
     await tester.tap(find.byTooltip('添加单品'));
