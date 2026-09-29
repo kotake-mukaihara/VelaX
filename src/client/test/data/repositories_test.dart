@@ -39,7 +39,7 @@ void main() {
     () async {
       final brand = await BrandRepository(db).createBrand(' Brand ');
       final item = await repository.saveItem(
-        image: '/local/photo.jpg',
+        image: '/local/image.jpg',
         categoryId: 'top_shirt',
         brandId: brand.id,
         size: 'M',

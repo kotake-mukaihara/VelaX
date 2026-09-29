@@ -254,7 +254,7 @@ class _CropImagePageState extends State<CropImagePage>
         }
       }
     } else {
-      // A second finger always manipulates the photograph, even on a handle.
+      // A second finger always manipulates the image, even on a handle.
       _handle = null;
     }
     _pointers[event.pointer] = event.localPosition;

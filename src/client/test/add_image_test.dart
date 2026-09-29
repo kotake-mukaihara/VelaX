@@ -59,7 +59,7 @@ void main() {
     testWidgets('$source opens editor and returns without sheet', (
       tester,
     ) async {
-      final picker = FakePicker()..result = XFile('/missing-photo.jpg');
+      final picker = FakePicker()..result = XFile('/missing-image.jpg');
       await openSheet(tester, picker, TargetPlatform.android);
       await tester.tap(
         find.text(source == ImageSource.camera ? '拍照' : '从相册选择'),

@@ -43,11 +43,11 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _items = widget.loadItems();
     if (Platform.isAndroid) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _recoverPhoto());
+      WidgetsBinding.instance.addPostFrameCallback((_) => _recoverImage());
     }
   }
 
-  Future<void> _recoverPhoto() async {
+  Future<void> _recoverImage() async {
     try {
       final response = await _picker.retrieveLostData();
       if (!mounted) return;
@@ -88,7 +88,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<void> _addPhoto() async {
+  Future<void> _addImage() async {
     if (_picking) return;
     setState(() => _picking = true);
     try {
@@ -188,7 +188,7 @@ class _HomePageState extends State<HomePage> {
         floatingActionButton: _selectedIndex == 1
             ? FloatingActionButton.extended(
                 tooltip: '添加单品',
-                onPressed: _picking ? null : _addPhoto,
+                onPressed: _picking ? null : _addImage,
                 icon: const Icon(Icons.add),
                 label: const Text('添加单品'),
               )
@@ -288,7 +288,7 @@ class _HomePageState extends State<HomePage> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: FilledButton.icon(
-                      onPressed: _picking ? null : _addPhoto,
+                      onPressed: _picking ? null : _addImage,
                       icon: const Icon(Icons.add, size: 20),
                       label: const Text('添加单品'),
                     ),
@@ -357,12 +357,12 @@ class _HomePageState extends State<HomePage> {
                     else
                       LayoutBuilder(
                         builder: (context, constraints) {
-                          final photoWidth = wide
+                          final imageWidth = wide
                               ? (constraints.maxWidth - 48) / 5
                               : 132.0;
-                          final photoHeight = photoWidth * 164 / 132;
+                          final imageHeight = imageWidth * 164 / 132;
                           return SizedBox(
-                            height: photoHeight,
+                            height: imageHeight,
                             child: ListView.separated(
                               physics: wide
                                   ? const NeverScrollableScrollPhysics()
@@ -381,12 +381,12 @@ class _HomePageState extends State<HomePage> {
                                     borderRadius: BorderRadius.circular(16),
                                     child: Image.file(
                                       File(items[index].image),
-                                      width: photoWidth,
-                                      height: photoHeight,
+                                      width: imageWidth,
+                                      height: imageHeight,
                                       fit: BoxFit.cover,
                                       cacheWidth: 400,
                                       errorBuilder: (_, _, _) => Container(
-                                        width: photoWidth,
+                                        width: imageWidth,
                                         color: Theme.of(context)
                                             .colorScheme
                                             .surfaceContainerHighest,

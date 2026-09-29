@@ -16,7 +16,7 @@ void main() {
     updatedAt: date,
   );
 
-  testWidgets('groups, counts, sorts and scrolls all photos', (tester) async {
+  testWidgets('groups, counts, sorts and scrolls all images', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(390, 844);
     addTearDown(tester.view.resetPhysicalSize);
@@ -52,15 +52,15 @@ void main() {
     for (final label in ['筛选', '分类', '更多']) {
       expect(find.byTooltip(label), findsNothing);
     }
-    final newest = find.byKey(const ValueKey('wardrobe-photo-7'));
-    final next = find.byKey(const ValueKey('wardrobe-photo-6'));
+    final newest = find.byKey(const ValueKey('wardrobe-image-7'));
+    final next = find.byKey(const ValueKey('wardrobe-image-6'));
     expect(tester.getTopLeft(newest).dx, lessThan(tester.getTopLeft(next).dx));
     final strip = find.byWidgetPredicate(
       (w) => w is ListView && w.scrollDirection == Axis.horizontal,
     );
     await tester.drag(strip, const Offset(-1500, 0));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('wardrobe-photo-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('wardrobe-image-0')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

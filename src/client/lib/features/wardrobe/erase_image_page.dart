@@ -162,7 +162,7 @@ class _EraseImagePageState extends State<EraseImagePage> {
           _image!.width.toDouble(),
           _image!.height.toDouble(),
         );
-        // Ignore gestures wholly outside the photograph.
+        // Ignore gestures wholly outside the image.
         final strokeBounds = points.fold<Rect>(
           Rect.fromCircle(center: points.first, radius: _strokeWidth / 2),
           (r, point) => r.expandToInclude(
