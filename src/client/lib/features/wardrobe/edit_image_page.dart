@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import 'crop_image_page.dart';
 import 'edit_item_page.dart';
 import 'item_options.dart';
 
@@ -18,6 +19,39 @@ class EditImagePage extends StatefulWidget {
 class _EditImagePageState extends State<EditImagePage> {
   final _draft = ItemDraft();
   bool _confirmingExit = false;
+  late String _imagePath = widget.imagePath;
+  final _temporaryImages = <String>[];
+
+  Future<void> _crop() async {
+    final result = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => CropImagePage(imagePath: _imagePath)),
+    );
+    if (result == null) return;
+    if (!mounted) {
+      await _removeTemporaryImage(result);
+      return;
+    }
+    setState(() {
+      _temporaryImages.add(result);
+      _imagePath = result;
+    });
+  }
+
+  Future<void> _removeTemporaryImage(String path) async {
+    try {
+      await File(path).delete();
+    } on FileSystemException {
+      // The operating system may already have cleared its temporary directory.
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final path in _temporaryImages) {
+      _removeTemporaryImage(path);
+    }
+    super.dispose();
+  }
 
   Future<void> _confirmExit() async {
     if (_confirmingExit) return;
@@ -74,7 +108,7 @@ class _EditImagePageState extends State<EditImagePage> {
                         child: CustomPaint(
                           painter: const _CheckerboardPainter(),
                           child: Image.file(
-                            File(widget.imagePath),
+                            File(_imagePath),
                             fit: BoxFit.contain,
                             semanticLabel: '待编辑的衣物照片',
                             errorBuilder: (_, _, _) =>
@@ -98,7 +132,7 @@ class _EditImagePageState extends State<EditImagePage> {
                           ])
                             Expanded(
                               child: TextButton(
-                                onPressed: null,
+                                onPressed: action.$1 == '裁剪' ? _crop : null,
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -120,7 +154,7 @@ class _EditImagePageState extends State<EditImagePage> {
                                 .push<bool>(
                                   MaterialPageRoute(
                                     builder: (_) => EditItemPage(
-                                      imagePath: widget.imagePath,
+                                      imagePath: _imagePath,
                                       options: widget.options,
                                       draft: _draft,
                                     ),
