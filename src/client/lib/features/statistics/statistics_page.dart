@@ -199,7 +199,9 @@ class _StatisticsPageState extends State<StatisticsPage> {
                           spacing: 10,
                           runSpacing: 10,
                           children: [
-                            for (final brand in brands.values)
+                            for (final brand in brands.values.where(
+                              (brand) => brand.$2 > 0,
+                            ))
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16,
