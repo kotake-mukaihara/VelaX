@@ -47,7 +47,7 @@ void main() {
       );
       expect(
         find.byWidgetPredicate((w) => content(w).startsWith('颜色：')),
-        findsNothing,
+        findsOneWidget,
       );
       expect(tester.getTopLeft(type).dy, tester.getTopLeft(size).dy);
       expect(

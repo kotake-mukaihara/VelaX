@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../domain/models/clothing_item.dart';
+import '../../domain/models/color.dart' as model;
 import 'edit_item_page.dart';
 import 'item_image_preview.dart';
 import 'item_options.dart';
@@ -65,13 +68,6 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
       ('品类', _item.category.name),
       ('品牌', _item.brand?.name),
       ('尺寸', _item.size),
-      (
-        '颜色',
-        [
-          if (_item.primaryColor case final color?) color.name,
-          ..._item.secondaryColors.map((color) => color.name),
-        ].join('、'),
-      ),
     ].where((entry) => entry.$2?.trim().isNotEmpty ?? false).toList();
     return PopScope(
       canPop: !_deleting,
@@ -121,14 +117,31 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                         children: [
                           for (final entry in attributes)
                             SizedBox(
-                              width: attributes.length == 1
-                                  ? constraints.maxWidth
-                                  : (constraints.maxWidth - 12) / 2,
+                              width: (constraints.maxWidth - 12) / 2,
                               child: _Attribute(
                                 name: entry.$1,
                                 value: entry.$2!,
                               ),
                             ),
+                          SizedBox(
+                            width: (constraints.maxWidth - 12) / 2,
+                            child: _Attribute(
+                              name: '颜色',
+                              child: Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                crossAxisAlignment: WrapCrossAlignment.end,
+                                children: [
+                                  _ColorBall(
+                                    color: _item.primaryColor,
+                                    size: 24,
+                                  ),
+                                  for (final color in _item.secondaryColors)
+                                    _ColorBall(color: color, size: 16),
+                                ],
+                              ),
+                            ),
+                          ),
                           if (_item.note case final note?
                               when note.trim().isNotEmpty)
                             SizedBox(
@@ -150,9 +163,10 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
 }
 
 class _Attribute extends StatelessWidget {
-  const _Attribute({required this.name, required this.value});
+  const _Attribute({required this.name, this.value, this.child});
   final String name;
-  final String value;
+  final String? value;
+  final Widget? child;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -161,16 +175,65 @@ class _Attribute extends StatelessWidget {
       color: Theme.of(context).colorScheme.surfaceContainer,
       borderRadius: BorderRadius.circular(12),
     ),
-    child: Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(text: '$name：'),
-          TextSpan(
-            text: value,
-            style: const TextStyle(fontWeight: FontWeight.bold),
+    child: child != null
+        ? Row(
+            children: [
+              Text('$name：'),
+              Expanded(child: child!),
+            ],
+          )
+        : Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: '$name：'),
+                TextSpan(
+                  text: value,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
           ),
-        ],
+  );
+}
+
+class _ColorBall extends StatelessWidget {
+  const _ColorBall({required this.color, required this.size});
+
+  final model.Color? color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+    foregroundPainter: color == null ? const _DashedCirclePainter() : null,
+    child: Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color == null
+            ? Colors.white
+            : Color(int.parse(color!.hex.replaceFirst('#', 'FF'), radix: 16)),
+        border: color == null ? null : Border.all(color: Colors.black12),
       ),
     ),
   );
+}
+
+class _DashedCirclePainter extends CustomPainter {
+  const _DashedCirclePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.grey
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final bounds = (Offset.zero & size).deflate(0.5);
+    for (var i = 0; i < 12; i++) {
+      canvas.drawArc(bounds, i * math.pi / 6, math.pi / 10, false, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedCirclePainter oldDelegate) => false;
 }

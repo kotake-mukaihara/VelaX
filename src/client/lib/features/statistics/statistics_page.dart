@@ -105,11 +105,12 @@ class _StatisticsPageState extends State<StatisticsPage> {
             color?.name ?? '未知',
             (previous?.count ?? 0) + 1,
             color == null
-                ? const Color(0xFF9E9E9E)
+                ? Colors.white
                 : Color(
                     0xFF000000 |
                         int.parse(color.hex.replaceFirst('#', ''), radix: 16),
                   ),
+            dashedOutline: color == null,
           );
           final brand = item.brand;
           brands[brand?.id] = (
@@ -300,11 +301,18 @@ const _palette = [
 ];
 
 class _Slice {
-  const _Slice(this.id, this.name, this.count, this.color);
+  const _Slice(
+    this.id,
+    this.name,
+    this.count,
+    this.color, {
+    this.dashedOutline = false,
+  });
   final String id;
   final String name;
   final int count;
   final Color color;
+  final bool dashedOutline;
 }
 
 class _PieChart extends StatelessWidget {
@@ -456,10 +464,38 @@ class _PiePainter extends CustomPainter {
     var start = 0.0;
     for (final slice in slices) {
       final sweep = slice.count / total * math.pi * 2;
-      canvas.drawPath(
-        _ringSlicePath(radius, start, sweep, slices.length).shift(center),
-        Paint()..color = slice.color,
-      );
+      final path = _ringSlicePath(
+        radius,
+        start,
+        sweep,
+        slices.length,
+      ).shift(center);
+      canvas.drawPath(path, Paint()..color = slice.color);
+      if (slice.dashedOutline) {
+        final outline = Path();
+        for (final metric in path.computeMetrics()) {
+          for (var distance = 0.0; distance < metric.length; distance += 7) {
+            outline.addPath(
+              metric.extractPath(
+                distance,
+                math.min(distance + 4, metric.length),
+              ),
+              Offset.zero,
+            );
+          }
+        }
+        // Keep the outline inside the segment and preserve the chart gaps.
+        canvas.save();
+        canvas.clipPath(path);
+        canvas.drawPath(
+          outline,
+          Paint()
+            ..color = Colors.grey
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2,
+        );
+        canvas.restore();
+      }
       final percent = slice.count / total * 100;
       final text = TextPainter(
         text: TextSpan(
