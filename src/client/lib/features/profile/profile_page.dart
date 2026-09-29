@@ -22,14 +22,18 @@ class _ProfilePageState extends State<ProfilePage> {
     return ListView(
       padding: EdgeInsets.fromLTRB(
         widget.wide ? 40 : 24,
-        20,
+        widget.wide ? 40 : 32,
         widget.wide ? 40 : 24,
         32,
       ),
       children: [
         const Text(
           '我的',
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontSize: 28,
+            height: 1.4,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         const SizedBox(height: 24),
         _group([

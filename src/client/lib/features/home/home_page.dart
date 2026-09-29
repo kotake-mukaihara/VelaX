@@ -271,7 +271,11 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   const Text(
                     '栖色 VelaX',
-                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 28,
+                      height: 1.4,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(

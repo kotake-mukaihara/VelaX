@@ -55,13 +55,22 @@ class _WardrobePageState extends State<WardrobePage> {
   Widget build(BuildContext context) => Column(
     children: [
       Padding(
-        padding: EdgeInsets.fromLTRB(widget.wide ? 40 : 24, 32, 24, 24),
+        padding: EdgeInsets.fromLTRB(
+          widget.wide ? 40 : 24,
+          widget.wide ? 40 : 32,
+          widget.wide ? 40 : 24,
+          24,
+        ),
         child: Row(
           children: [
             const Expanded(
               child: Text(
                 '我的衣橱',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: 28,
+                  height: 1.4,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
