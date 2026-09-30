@@ -118,7 +118,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('衣橱').last);
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('wardrobe-photo-one')));
+      await tester.tap(find.byKey(const ValueKey('wardrobe-image-one')));
       await tester.pumpAndSettle();
       expect(
         find.byWidgetPredicate((w) => content(w) == '备注：新备注'),

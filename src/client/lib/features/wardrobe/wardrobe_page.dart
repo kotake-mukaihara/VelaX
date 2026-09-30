@@ -185,7 +185,7 @@ class _WardrobePageState extends State<WardrobePage> {
                             count: groups[child]!.length,
                           ),
                           const SizedBox(height: 12),
-                          _PhotoStrip(
+                          _ImageStrip(
                             items: groups[child]!,
                             onOpenItem: widget.onOpenItem,
                           ),
@@ -245,8 +245,8 @@ class _CategoryHeading extends StatelessWidget {
   );
 }
 
-class _PhotoStrip extends StatelessWidget {
-  const _PhotoStrip({required this.items, this.onOpenItem});
+class _ImageStrip extends StatelessWidget {
+  const _ImageStrip({required this.items, this.onOpenItem});
   final List<ClothingItem> items;
   final ValueChanged<ClothingItem>? onOpenItem;
 
@@ -266,7 +266,7 @@ class _PhotoStrip extends StatelessWidget {
           child: InkWell(
             onTap: onOpenItem == null ? null : () => onOpenItem!(items[index]),
             child: ClipRRect(
-              key: ValueKey('wardrobe-photo-${items[index].id}'),
+              key: ValueKey('wardrobe-image-${items[index].id}'),
               borderRadius: BorderRadius.circular(10),
               child: Image.file(
                 File(items[index].image),

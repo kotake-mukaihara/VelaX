@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -43,11 +44,11 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _items = widget.loadItems();
     if (Platform.isAndroid) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _recoverPhoto());
+      WidgetsBinding.instance.addPostFrameCallback((_) => _recoverImage());
     }
   }
 
-  Future<void> _recoverPhoto() async {
+  Future<void> _recoverImage() async {
     try {
       final response = await _picker.retrieveLostData();
       if (!mounted) return;
@@ -88,7 +89,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<void> _addPhoto() async {
+  Future<void> _addImage() async {
     if (_picking) return;
     setState(() => _picking = true);
     try {
@@ -188,7 +189,7 @@ class _HomePageState extends State<HomePage> {
         floatingActionButton: _selectedIndex == 1
             ? FloatingActionButton.extended(
                 tooltip: '添加单品',
-                onPressed: _picking ? null : _addPhoto,
+                onPressed: _picking ? null : _addImage,
                 icon: const Icon(Icons.add),
                 label: const Text('添加单品'),
               )
@@ -284,15 +285,6 @@ class _HomePageState extends State<HomePage> {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: FilledButton.icon(
-                      onPressed: _picking ? null : _addPhoto,
-                      icon: const Icon(Icons.add, size: 20),
-                      label: const Text('添加单品'),
-                    ),
-                  ),
                   const SizedBox(height: 28),
                   if (snapshot.connectionState == ConnectionState.waiting)
                     const Padding(
@@ -357,46 +349,56 @@ class _HomePageState extends State<HomePage> {
                     else
                       LayoutBuilder(
                         builder: (context, constraints) {
-                          final photoWidth = wide
+                          final imageWidth = wide
                               ? (constraints.maxWidth - 48) / 5
                               : 132.0;
-                          final photoHeight = photoWidth * 164 / 132;
+                          final imageHeight = imageWidth * 164 / 132;
                           return SizedBox(
-                            height: photoHeight,
-                            child: ListView.separated(
-                              physics: wide
-                                  ? const NeverScrollableScrollPhysics()
-                                  : null,
-                              scrollDirection: Axis.horizontal,
-                              itemCount: items.length.clamp(0, 5),
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(width: 12),
-                              itemBuilder: (context, index) => Semantics(
-                                label:
-                                    '最近添加的${items[index].category.name}，第${index + 1}件',
-                                image: true,
-                                child: InkWell(
-                                  onTap: () => _openItem(items[index]),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Image.file(
-                                      File(items[index].image),
-                                      width: photoWidth,
-                                      height: photoHeight,
-                                      fit: BoxFit.cover,
-                                      cacheWidth: 400,
-                                      errorBuilder: (_, _, _) => Container(
-                                        width: photoWidth,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .surfaceContainerHighest,
-                                        child: Center(
-                                          child: Icon(
-                                            Icons.broken_image_outlined,
-                                            semanticLabel: '照片无法读取',
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant,
+                            height: imageHeight,
+                            child: ScrollConfiguration(
+                              behavior: ScrollConfiguration.of(context)
+                                  .copyWith(
+                                    dragDevices: {
+                                      ...ScrollConfiguration.of(context)
+                                          .dragDevices,
+                                      PointerDeviceKind.mouse,
+                                    },
+                                  ),
+                              child: ListView.separated(
+                                physics: wide
+                                    ? const NeverScrollableScrollPhysics()
+                                    : null,
+                                scrollDirection: Axis.horizontal,
+                                itemCount: items.length.clamp(0, 5),
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(width: 12),
+                                itemBuilder: (context, index) => Semantics(
+                                  label:
+                                      '最近添加的${items[index].category.name}，第${index + 1}件',
+                                  image: true,
+                                  child: InkWell(
+                                    onTap: () => _openItem(items[index]),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Image.file(
+                                        File(items[index].image),
+                                        width: imageWidth,
+                                        height: imageHeight,
+                                        fit: BoxFit.cover,
+                                        cacheWidth: 400,
+                                        errorBuilder: (_, _, _) => Container(
+                                          width: imageWidth,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surfaceContainerHighest,
+                                          child: Center(
+                                            child: Icon(
+                                              Icons.broken_image_outlined,
+                                              semanticLabel: '照片无法读取',
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -483,30 +485,49 @@ class _Overview extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
+        Text(
+          '共 ${items.length} 件衣物',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w400),
+        ),
+        const SizedBox(height: 24),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             for (final entry in [
-              ('衣物', items.length),
-              ('上装', _count('top')),
-              ('下装', _count('bottom')),
-              ('鞋履', _count('shoes')),
+              ('上装', _count('top'), '件'),
+              ('下装', _count('bottom'), '件'),
+              ('鞋履', _count('shoes'), '双'),
             ])
               Expanded(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${entry.$2}',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
                     Text(
                       entry.$1,
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text.rich(
+                      TextSpan(
+                        text: '${entry.$2}',
+                        children: [
+                          TextSpan(
+                            text: ' ${entry.$3}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],

@@ -2,6 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import 'crop_image_page.dart';
+import 'edit_session.dart';
+import 'erase_image_page.dart';
+import 'eraser_icon.dart';
+
 import 'edit_item_page.dart';
 import 'item_options.dart';
 
@@ -17,7 +22,83 @@ class EditImagePage extends StatefulWidget {
 
 class _EditImagePageState extends State<EditImagePage> {
   final _draft = ItemDraft();
+  late final _session = EditSession(widget.imagePath);
   bool _confirmingExit = false;
+  late String _imagePath = widget.imagePath;
+  final _temporaryImages = <String>[];
+
+  final _cropKey = GlobalKey<CropImagePageState>();
+  final _eraseKey = GlobalKey<EraseImagePageState>();
+  bool _erase = false;
+  bool _busy = false;
+
+  Future<bool> _commit() async {
+    try {
+      _cropKey.currentState?.finishGesture();
+      _eraseKey.currentState?.finishGesture();
+      final path = await _session.exportImage();
+      if (path != _imagePath) {
+        if (path != widget.imagePath) _temporaryImages.add(path);
+        _imagePath = path;
+      }
+      return mounted;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('图片保存失败，请重试')));
+      }
+      return false;
+    }
+  }
+
+  void _selectTool(bool erase) {
+    if (_busy || erase == _erase) return;
+    if (_erase) {
+      _eraseKey.currentState?.finishGesture();
+    } else {
+      _cropKey.currentState?.finishGesture();
+    }
+    setState(() => _erase = erase);
+  }
+
+  Future<void> _next() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    if (!await _commit()) {
+      if (mounted) setState(() => _busy = false);
+      return;
+    }
+    if (!mounted) return;
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => EditItemPage(
+          imagePath: _imagePath,
+          options: widget.options,
+          draft: _draft,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (saved == true) Navigator.pop(context, true);
+  }
+
+  Future<void> _removeTemporaryImage(String path) async {
+    try {
+      await File(path).delete();
+    } on FileSystemException {
+      // The operating system may already have cleared its temporary directory.
+    }
+  }
+
+  @override
+  void dispose() {
+    _session.dispose();
+    for (final path in _temporaryImages) {
+      _removeTemporaryImage(path);
+    }
+    super.dispose();
+  }
 
   Future<void> _confirmExit() async {
     if (_confirmingExit) return;
@@ -56,120 +137,66 @@ class _EditImagePageState extends State<EditImagePage> {
       if (!didPop) _confirmExit();
     },
     child: Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         leading: BackButton(onPressed: _confirmExit),
         title: const Text('编辑图片'),
+        actions: [
+          TextButton(
+            key: const ValueKey('edit-image-next'),
+            onPressed: _next,
+            child: const Text('下一步'),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1100),
-            child: Column(
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: SizedBox.expand(
-                      child: ClipRect(
-                        child: CustomPaint(
-                          painter: const _CheckerboardPainter(),
-                          child: Image.file(
-                            File(widget.imagePath),
-                            fit: BoxFit.contain,
-                            semanticLabel: '待编辑的衣物照片',
-                            errorBuilder: (_, _, _) =>
-                                const Center(child: Text('照片无法读取，请返回重新选择')),
-                          ),
-                        ),
-                      ),
+        top: false,
+        child: Column(
+          children: [
+            Expanded(
+              child: AbsorbPointer(
+                absorbing: _busy,
+                child: IndexedStack(
+                  index: _erase ? 1 : 0,
+                  children: [
+                    CropImagePage(
+                      key: _cropKey,
+                      imagePath: widget.imagePath,
+                      embedded: true,
+                      session: _session,
                     ),
-                  ),
+                    EraseImagePage(
+                      key: _eraseKey,
+                      imagePath: widget.imagePath,
+                      embedded: true,
+                      session: _session,
+                    ),
+                  ],
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          for (final action in [
-                            ('裁剪', Icons.crop),
-                            ('擦除', Icons.auto_fix_normal_outlined),
-                            ('抠图', Icons.content_cut),
-                          ])
-                            Expanded(
-                              child: TextButton(
-                                onPressed: null,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(action.$2),
-                                    const SizedBox(height: 8),
-                                    Text(action.$1),
-                                  ],
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton(
-                          onPressed: () async {
-                            final saved = await Navigator.of(context)
-                                .push<bool>(
-                                  MaterialPageRoute(
-                                    builder: (_) => EditItemPage(
-                                      imagePath: widget.imagePath,
-                                      options: widget.options,
-                                      draft: _draft,
-                                    ),
-                                  ),
-                                );
-                            if (saved == true && context.mounted) {
-                              Navigator.pop(context, true);
-                            }
-                          },
-                          child: const Text('下一步'),
-                        ),
-                      ),
-                    ],
-                  ),
+              ),
+            ),
+            NavigationBar(
+              selectedIndex: _erase ? 1 : 0,
+              onDestinationSelected: (index) => _selectTool(index == 1),
+              backgroundColor: Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerLow,
+              destinations: const [
+                NavigationDestination(icon: Icon(Icons.crop), label: '裁剪'),
+                NavigationDestination(
+                  icon: EraserIcon(),
+                  selectedIcon: EraserIcon(filled: true),
+                  label: '擦除',
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     ),
   );
-}
-
-/// Draw the transparency grid as vector rectangles at any preview size.
-class _CheckerboardPainter extends CustomPainter {
-  const _CheckerboardPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const cellSize = 12.0;
-    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
-    final gray = Paint()
-      ..color = const Color(0xFFE0E0E0)
-      ..isAntiAlias = false;
-    for (var row = 0; row < (size.height / cellSize).ceil(); row++) {
-      for (
-        var column = row % 2;
-        column < (size.width / cellSize).ceil();
-        column += 2
-      ) {
-        canvas.drawRect(
-          Rect.fromLTWH(column * cellSize, row * cellSize, cellSize, cellSize),
-          gray,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_CheckerboardPainter oldDelegate) => false;
 }
