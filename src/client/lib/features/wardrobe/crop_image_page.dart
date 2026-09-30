@@ -549,67 +549,78 @@ class CropImagePageState extends State<CropImagePage>
             SizedBox(height: 8),
             SizedBox(
               height: 82,
-              child: ListView.separated(
-                key: ValueKey('crop-ratios'),
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                itemCount: cropRatios.length,
-                separatorBuilder: (_, _) => SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final label = cropRatios.keys.elementAt(index);
-                  final selected = _state!.ratio == label;
-                  final ratio = label == '原始'
-                      ? selectedRatio(
-                          _state!.copyWith(ratio: label),
-                          _imageSize,
-                        )!
-                      : cropRatios[label] ?? 1.2;
-                  return Semantics(
-                    selected: selected,
-                    button: true,
-                    label: '$label 裁剪比例',
-                    child: InkWell(
-                      key: ValueKey('crop-ratio-$label'),
-                      borderRadius: BorderRadius.circular(10),
-                      onTap: () =>
-                          _change((s) => selectCropRatio(s, label, _imageSize)),
-                      child: SizedBox(
-                        width: 58,
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 56,
-                              height: 48,
-                              padding: EdgeInsets.all(5),
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: selected ? _blue : Colors.transparent,
-                                  width: 2,
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(
+                  dragDevices: {
+                    ...ScrollConfiguration.of(context).dragDevices,
+                    ui.PointerDeviceKind.mouse,
+                  },
+                ),
+                child: ListView.separated(
+                  key: ValueKey('crop-ratios'),
+                  scrollDirection: Axis.horizontal,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  itemCount: cropRatios.length,
+                  separatorBuilder: (_, _) => SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final label = cropRatios.keys.elementAt(index);
+                    final selected = _state!.ratio == label;
+                    final ratio = label == '原始'
+                        ? selectedRatio(
+                            _state!.copyWith(ratio: label),
+                            _imageSize,
+                          )!
+                        : cropRatios[label] ?? 1.2;
+                    return Semantics(
+                      selected: selected,
+                      button: true,
+                      label: '$label 裁剪比例',
+                      child: InkWell(
+                        key: ValueKey('crop-ratio-$label'),
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () => _change(
+                          (s) => selectCropRatio(s, label, _imageSize),
+                        ),
+                        child: SizedBox(
+                          width: 58,
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 56,
+                                height: 48,
+                                padding: EdgeInsets.all(5),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: selected
+                                        ? _blue
+                                        : Colors.transparent,
+                                    width: 2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Center(
-                                child: Container(
-                                  width: ratio >= 1 ? 32 : 28 * ratio,
-                                  height: ratio >= 1 ? 32 / ratio : 28,
-                                  decoration: BoxDecoration(
-                                    color: _colors.outline,
-                                    borderRadius: BorderRadius.circular(3),
+                                child: Center(
+                                  child: Container(
+                                    width: ratio >= 1 ? 32 : 28 * ratio,
+                                    height: ratio >= 1 ? 32 / ratio : 28,
+                                    decoration: BoxDecoration(
+                                      color: _colors.outline,
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            SizedBox(height: 5),
-                            Text(
-                              label,
-                              style: TextStyle(color: _gray, fontSize: 12),
-                            ),
-                          ],
+                              SizedBox(height: 5),
+                              Text(
+                                label,
+                                style: TextStyle(color: _gray, fontSize: 12),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
           ],

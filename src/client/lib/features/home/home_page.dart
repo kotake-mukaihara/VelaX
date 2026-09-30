@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -363,40 +364,50 @@ class _HomePageState extends State<HomePage> {
                           final imageHeight = imageWidth * 164 / 132;
                           return SizedBox(
                             height: imageHeight,
-                            child: ListView.separated(
-                              physics: wide
-                                  ? const NeverScrollableScrollPhysics()
-                                  : null,
-                              scrollDirection: Axis.horizontal,
-                              itemCount: items.length.clamp(0, 5),
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(width: 12),
-                              itemBuilder: (context, index) => Semantics(
-                                label:
-                                    '最近添加的${items[index].category.name}，第${index + 1}件',
-                                image: true,
-                                child: InkWell(
-                                  onTap: () => _openItem(items[index]),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Image.file(
-                                      File(items[index].image),
-                                      width: imageWidth,
-                                      height: imageHeight,
-                                      fit: BoxFit.cover,
-                                      cacheWidth: 400,
-                                      errorBuilder: (_, _, _) => Container(
+                            child: ScrollConfiguration(
+                              behavior: ScrollConfiguration.of(context)
+                                  .copyWith(
+                                    dragDevices: {
+                                      ...ScrollConfiguration.of(context)
+                                          .dragDevices,
+                                      PointerDeviceKind.mouse,
+                                    },
+                                  ),
+                              child: ListView.separated(
+                                physics: wide
+                                    ? const NeverScrollableScrollPhysics()
+                                    : null,
+                                scrollDirection: Axis.horizontal,
+                                itemCount: items.length.clamp(0, 5),
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(width: 12),
+                                itemBuilder: (context, index) => Semantics(
+                                  label:
+                                      '最近添加的${items[index].category.name}，第${index + 1}件',
+                                  image: true,
+                                  child: InkWell(
+                                    onTap: () => _openItem(items[index]),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Image.file(
+                                        File(items[index].image),
                                         width: imageWidth,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .surfaceContainerHighest,
-                                        child: Center(
-                                          child: Icon(
-                                            Icons.broken_image_outlined,
-                                            semanticLabel: '照片无法读取',
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant,
+                                        height: imageHeight,
+                                        fit: BoxFit.cover,
+                                        cacheWidth: 400,
+                                        errorBuilder: (_, _, _) => Container(
+                                          width: imageWidth,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surfaceContainerHighest,
+                                          child: Center(
+                                            child: Icon(
+                                              Icons.broken_image_outlined,
+                                              semanticLabel: '照片无法读取',
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                            ),
                                           ),
                                         ),
                                       ),

@@ -413,6 +413,45 @@ void main() {
     },
   );
 
+  testWidgets(
+    'mouse can drag ratios both ways and select a ratio',
+    (tester) async {
+      await open(tester);
+      final ratios = find.byKey(const ValueKey('crop-ratios'));
+      final scrollable = tester.state<ScrollableState>(
+        find.descendant(of: ratios, matching: find.byType(Scrollable)),
+      );
+      expect(scrollable.position.pixels, 0);
+      await tester.drag(
+        ratios,
+        const Offset(-600, 0),
+        kind: ui.PointerDeviceKind.mouse,
+      );
+      await tester.pumpAndSettle();
+      expect(scrollable.position.pixels, greaterThan(0));
+      expect(canComplete(tester), isFalse);
+      await tester.tap(find.byKey(const ValueKey('crop-ratio-7:5')));
+      await tester.pumpAndSettle();
+      expect(canComplete(tester), isTrue);
+      await tester.drag(
+        ratios,
+        const Offset(600, 0),
+        kind: ui.PointerDeviceKind.mouse,
+      );
+      await tester.pumpAndSettle();
+      expect(scrollable.position.pixels, 0);
+      expect(
+        find.byKey(const ValueKey('crop-ratio-自由')).hitTestable(),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+    variant: TargetPlatformVariant({
+      TargetPlatform.windows,
+      TargetPlatform.macOS,
+    }),
+  );
+
   testWidgets('tilt and mirror are undoable, and landscape has no overflow', (
     tester,
   ) async {
