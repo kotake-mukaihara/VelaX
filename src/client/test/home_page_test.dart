@@ -60,7 +60,9 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('栖色 VelaX'), findsOneWidget);
-    expect(find.text('0'), findsNWidgets(4));
+    expect(find.text('共 0 件衣物'), findsOneWidget);
+    expect(find.text('0 件', findRichText: true), findsNWidgets(2));
+    expect(find.text('0 双', findRichText: true), findsOneWidget);
     expect(find.text('还没有衣物'), findsOneWidget);
     await tester.tap(find.byTooltip('查看衣橱数据'));
     await tester.pumpAndSettle();

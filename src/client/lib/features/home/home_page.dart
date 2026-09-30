@@ -285,15 +285,6 @@ class _HomePageState extends State<HomePage> {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: FilledButton.icon(
-                      onPressed: _picking ? null : _addImage,
-                      icon: const Icon(Icons.add, size: 20),
-                      label: const Text('添加单品'),
-                    ),
-                  ),
                   const SizedBox(height: 28),
                   if (snapshot.connectionState == ConnectionState.waiting)
                     const Padding(
@@ -494,30 +485,49 @@ class _Overview extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
+        Text(
+          '共 ${items.length} 件衣物',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w400),
+        ),
+        const SizedBox(height: 24),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             for (final entry in [
-              ('衣物', items.length),
-              ('上装', _count('top')),
-              ('下装', _count('bottom')),
-              ('鞋履', _count('shoes')),
+              ('上装', _count('top'), '件'),
+              ('下装', _count('bottom'), '件'),
+              ('鞋履', _count('shoes'), '双'),
             ])
               Expanded(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${entry.$2}',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
                     Text(
                       entry.$1,
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text.rich(
+                      TextSpan(
+                        text: '${entry.$2}',
+                        children: [
+                          TextSpan(
+                            text: ' ${entry.$3}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
