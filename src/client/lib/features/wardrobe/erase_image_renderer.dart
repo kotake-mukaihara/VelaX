@@ -2,10 +2,12 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 class EraseStroke {
-  EraseStroke(List<ui.Offset> points, this.width)
-    : points = List.unmodifiable(points);
+  EraseStroke(List<ui.Offset> points, this.width, {List<ui.Offset>? clip})
+    : points = List.unmodifiable(points),
+      clip = clip == null ? null : List.unmodifiable(clip);
   final List<ui.Offset> points;
   final double width;
+  final List<ui.Offset>? clip;
 }
 
 void paintEraseStrokes(
@@ -14,6 +16,10 @@ void paintEraseStrokes(
   ui.Paint paint,
 ) {
   for (final stroke in strokes) {
+    canvas.save();
+    if (stroke.clip != null) {
+      canvas.clipPath(ui.Path()..addPolygon(stroke.clip!, true));
+    }
     paint.strokeWidth = stroke.width;
     paint.strokeCap = ui.StrokeCap.round;
     paint.strokeJoin = ui.StrokeJoin.round;
@@ -29,6 +35,7 @@ void paintEraseStrokes(
       }
       canvas.drawPath(path, paint);
     }
+    canvas.restore();
   }
 }
 
@@ -44,7 +51,11 @@ void paintErasedImage(
     image.height.toDouble(),
   );
   canvas.saveLayer(bounds, ui.Paint());
-  canvas.drawImage(image, ui.Offset.zero, ui.Paint());
+  canvas.drawImage(
+    image,
+    ui.Offset.zero,
+    ui.Paint()..filterQuality = ui.FilterQuality.high,
+  );
   paintEraseStrokes(
     canvas,
     strokes,
@@ -58,23 +69,33 @@ Future<Uint8List> renderErasedImage(
   List<EraseStroke> strokes, {
   ui.Rect? bounds,
 }) async {
+  final result = createErasedImage(image, strokes, bounds: bounds);
+  try {
+    final data = await result.toByteData(format: ui.ImageByteFormat.png);
+    if (data == null) throw StateError('无法编码图片');
+    return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+  } finally {
+    result.dispose();
+  }
+}
+
+/// Defers rasterization without PNG encoding or CPU readback.
+/// The caller owns and must dispose the returned image.
+ui.Image createErasedImage(
+  ui.Image image,
+  List<EraseStroke> strokes, {
+  ui.Rect? bounds,
+}) {
   final recorder = ui.PictureRecorder();
   final canvas = ui.Canvas(recorder);
   if (bounds != null) canvas.translate(-bounds.left, -bounds.top);
   paintErasedImage(canvas, image, strokes);
   final picture = recorder.endRecording();
   try {
-    final result = await picture.toImage(
+    return picture.toImageSync(
       bounds?.width.toInt() ?? image.width,
       bounds?.height.toInt() ?? image.height,
     );
-    try {
-      final data = await result.toByteData(format: ui.ImageByteFormat.png);
-      if (data == null) throw StateError('无法编码图片');
-      return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-    } finally {
-      result.dispose();
-    }
   } finally {
     picture.dispose();
   }

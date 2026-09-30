@@ -288,8 +288,24 @@ void main() {
         final crop = tester.state<CropImagePageState>(
           find.byType(CropImagePage),
         );
-        await tester.tap(find.text('擦除'));
+        final session = tester
+            .widget<CropImagePage>(find.byType(CropImagePage))
+            .session!;
+        final original = session.image;
+        expect(
+          tester
+              .widget<EraseImagePage>(
+                find.byType(EraseImagePage, skipOffstage: false),
+              )
+              .session,
+          same(session),
+        );
+        await tester.tap(find.byTooltip('逆时针旋转90°'));
         await tester.pumpAndSettle();
+        final cropParameters = session.crop;
+        await tester.tap(find.text('擦除'));
+        // Switching an edited session needs no asynchronous rendering or I/O.
+        await tester.pump();
         final erase = tester.state<EraseImagePageState>(
           find.byType(EraseImagePage),
         );
@@ -327,6 +343,26 @@ void main() {
         );
         await tester.pump();
         expect(enabled(tester), isTrue);
+        await tester.tap(find.byKey(const ValueKey('erase-apply')));
+        await tester.pump();
+        expect(session.erase.erased, hasLength(1));
+        expect(session.crop, same(cropParameters));
+        await tester.tap(find.text('裁剪'));
+        await tester.pump();
+        expect(
+          tester
+              .widget<NavigationBar>(find.byType(NavigationBar))
+              .selectedIndex,
+          0,
+        );
+        await tester.tap(find.text('擦除'));
+        await tester.pump();
+        // Start a new pending stroke for the state-retention checks below.
+        await tester.dragFrom(
+          tester.getCenter(find.byKey(const ValueKey('erase-preview'))),
+          const Offset(30, 0),
+        );
+        await tester.pump();
         expect(
           tester
               .widget<IconButton>(
@@ -373,6 +409,35 @@ void main() {
           1,
         );
         expect(tester.takeException(), isNull);
+        final mask = session.erase;
+        for (var i = 0; i < 12; i++) {
+          await tester.tap(find.text('裁剪'));
+          await tester.pump();
+          expect(
+            tester
+                .widget<NavigationBar>(find.byType(NavigationBar))
+                .selectedIndex,
+            0,
+          );
+          await tester.tap(find.text('擦除'));
+          await tester.pump();
+          expect(
+            tester
+                .widget<NavigationBar>(find.byType(NavigationBar))
+                .selectedIndex,
+            1,
+          );
+          expect(session.image, same(original));
+          expect(session.crop, same(cropParameters));
+          expect(session.erase, same(mask));
+        }
+        // Cropping stays undoable after applied erasure and repeated switches.
+        await tester.tap(find.text('裁剪'));
+        await tester.pump();
+        await tester.tap(find.byTooltip('撤销'));
+        await tester.pumpAndSettle();
+        expect(session.crop!.sameAs(session.initialCrop), isTrue);
+        expect(session.erase, same(mask));
         await tester.pumpWidget(const SizedBox());
       },
     );

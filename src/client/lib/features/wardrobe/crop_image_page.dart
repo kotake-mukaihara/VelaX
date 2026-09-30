@@ -1,15 +1,13 @@
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:uuid/uuid.dart';
 
 import 'checkerboard_painter.dart';
 import 'crop_geometry.dart';
 import 'crop_image_renderer.dart';
+import 'edit_session.dart';
+import 'erase_image_renderer.dart';
 
 const _blue = Color(0xFF438EFF);
 
@@ -18,9 +16,11 @@ class CropImagePage extends StatefulWidget {
     super.key,
     required this.imagePath,
     this.embedded = false,
+    this.session,
   });
   final String imagePath;
   final bool embedded;
+  final EditSession? session;
 
   @override
   State<CropImagePage> createState() => CropImagePageState();
@@ -33,15 +33,13 @@ class CropImagePageState extends State<CropImagePage>
   Color get _panel => _colors.surfaceContainerLow;
   Color get _gray => _colors.onSurfaceVariant;
   Color get _blue => _colors.primary;
-  ui.Image? _image;
-  late final Future<void> ready;
-  CropState? _sharedState;
-  bool _receivedImage = false;
-  String? _error;
+  late final EditSession _session;
+  ui.Image? get _image => _session.image;
+  Future<void> get ready => _session.ready;
+  String? get _error => _session.error;
   CropState? _state;
-  late CropState _initial;
-  final _history = <CropState>[];
-  int _historyIndex = 0;
+  bool _updatingCrop = false;
+  CropState get _initial => _session.initialCrop;
   bool _saving = false;
   bool _confirming = false;
   bool _allowExit = false;
@@ -71,7 +69,7 @@ class CropImagePageState extends State<CropImagePage>
   bool get _dirty => _state != null && !_state!.sameAs(_initial);
   // Ignore transient overscroll/under-zoom until the gesture is committed.
   bool get _hasCommittedChanges =>
-      _history.isNotEmpty && !_history[_historyIndex].sameAs(_initial);
+      _session.crop != null && !_session.crop!.sameAs(_initial);
   double get _progress => Curves.easeOutCubic.transform(_animation.value);
   Rect get _camera => Rect.lerp(_cameraFrom, _cameraTo, _progress)!;
   CropState get _visualState => _snapFrom == null
@@ -84,88 +82,57 @@ class CropImagePageState extends State<CropImagePage>
   @override
   void initState() {
     super.initState();
-    ready = _load();
+    _session = widget.session ?? EditSession(widget.imagePath);
+    _session.addListener(_sessionChanged);
+    _initializeCrop();
   }
 
-  Future<ui.Image?> shareImage() async {
-    await ready;
-    if (_image == null || (_sharedState?.sameAs(_state!) ?? false)) return null;
-    final state = coverCrop(_state!, _imageSize);
-    final codec = await ui.instantiateImageCodec(
-      await renderCrop(_image!, state),
-    );
-    try {
-      final image = (await codec.getNextFrame()).image;
-      _sharedState = state;
-      return image;
-    } finally {
-      codec.dispose();
+  void _initializeCrop() {
+    if (_state == null && _session.crop != null) {
+      _state = _session.crop;
+      _cameraFrom = _cameraTo = _state!.crop;
     }
   }
 
-  void replaceImage(ui.Image image) {
-    _animation.stop();
-    final old = _image;
+  void _sessionChanged() {
+    if (!mounted) return;
     setState(() {
-      _image = image;
-      _error = null;
-      _receivedImage = true;
-      _initial = CropState.initial(_imageSize);
-      _state = _sharedState = _initial;
-      _history
-        ..clear()
-        ..add(_initial);
-      _historyIndex = 0;
-      _cameraFrom = _cameraTo = _initial.crop;
-      _snapFrom = null;
-      _snapScaleFrom = null;
-      _gestureBase = null;
-      _segmentBase = null;
-      _pointers.clear();
+      _initializeCrop();
+      if (!_updatingCrop &&
+          _gestureBase == null &&
+          _session.crop != null &&
+          !_state!.sameAs(_session.crop!)) {
+        _animation.stop();
+        _state = _session.crop;
+        _cameraFrom = _cameraTo = _state!.crop;
+        _snapFrom = null;
+        _snapScaleFrom = null;
+      }
     });
-    old?.dispose();
-  }
-
-  Future<void> _load() async {
-    try {
-      final bytes = await File(widget.imagePath).readAsBytes();
-      final codec = await ui.instantiateImageCodec(bytes);
-      late ui.Image image;
-      try {
-        image = (await codec.getNextFrame()).image;
-      } finally {
-        codec.dispose();
-      }
-      if (!mounted) {
-        image.dispose();
-        return;
-      }
-      setState(() {
-        _image = image;
-        _initial = CropState.initial(_imageSize);
-        _state = _initial;
-        _cameraFrom = _cameraTo = _initial.crop;
-        _history.add(_initial);
-        _sharedState = _initial;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _error = '照片无法读取，请返回重新选择');
-    }
   }
 
   @override
   void dispose() {
+    _session.removeListener(_sessionChanged);
     _animation.dispose();
-    _image?.dispose();
+    if (widget.session == null) _session.dispose();
     super.dispose();
   }
 
   void _record(CropState next) {
     _state = next;
-    if (_history[_historyIndex].sameAs(next)) return;
-    _history.removeRange(_historyIndex + 1, _history.length);
-    _history.add(next);
-    _historyIndex = _history.length - 1;
+    _updatingCrop = true;
+    _session.setCrop(next);
+    _updatingCrop = false;
+  }
+
+  // Settle only transient input; tool switches never render or replace images.
+  void finishGesture() {
+    if (_gestureBase == null || _state == null) return;
+    _gestureBase = null;
+    _segmentBase = null;
+    _pointers.clear();
+    _settle(coverCrop(_state!, _imageSize));
   }
 
   void _settle(CropState next, {bool record = true}) {
@@ -194,10 +161,10 @@ class CropImagePageState extends State<CropImagePage>
 
   void _undo(int direction) {
     if (_gestureBase != null) return;
-    final index = _historyIndex + direction;
-    if (index < 0 || index >= _history.length) return;
-    _historyIndex = index;
-    _settle(_history[index], record: false);
+    _updatingCrop = true;
+    _session.undoCrop(direction);
+    _updatingCrop = false;
+    _settle(_session.crop!, record: false);
   }
 
   Future<void> _leave([String? result]) async {
@@ -242,19 +209,10 @@ class CropImagePageState extends State<CropImagePage>
   Future<void> _complete() async {
     if (!_dirty || _saving) return;
     setState(() => _saving = true);
-    File? output;
     try {
-      final bytes = await renderCrop(_image!, _state!);
-      final directory = await getTemporaryDirectory();
-      output = File(p.join(directory.path, 'velax_crop_${Uuid().v4()}.png'));
-      await output.writeAsBytes(bytes, flush: true);
-      if (!mounted) {
-        await output.delete();
-        return;
-      }
-      await _leave(output.path);
+      final path = await exportImage();
+      if (mounted) await _leave(path);
     } catch (_) {
-      if (output != null && await output.exists()) await output.delete();
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context)
@@ -289,7 +247,7 @@ class CropImagePageState extends State<CropImagePage>
       _cameraFrom = _cameraTo = camera;
       _snapFrom = null;
       _snapScaleFrom = null;
-      _gestureBase = _history[_historyIndex];
+      _gestureBase = _session.crop;
       _dragView = _CropView(camera, viewport);
       _dragScale = _dragView.scale;
       _handle = null;
@@ -360,15 +318,9 @@ class CropImagePageState extends State<CropImagePage>
   }
 
   /// Exports applied edits without leaving the containing editor.
-  Future<String> exportImage() async {
-    if (_image == null || (!_dirty && !_receivedImage)) return widget.imagePath;
-    final bytes = await renderCrop(_image!, coverCrop(_state!, _imageSize));
-    final directory = await getTemporaryDirectory();
-    final output = File(
-      p.join(directory.path, 'velax_Crop_${Uuid().v4()}.png'),
-    );
-    await output.writeAsBytes(bytes, flush: true);
-    return output.path;
+  Future<String> exportImage() {
+    finishGesture();
+    return _session.exportImage();
   }
 
   Widget _editor() => SafeArea(
@@ -408,6 +360,7 @@ class CropImagePageState extends State<CropImagePage>
                                 _image!,
                                 _visualState,
                                 _camera,
+                                _session.erase.erased,
                               ),
                             ),
                           ),
@@ -489,7 +442,9 @@ class CropImagePageState extends State<CropImagePage>
                       SizedBox(width: 12),
                       IconButton(
                         tooltip: '撤销',
-                        onPressed: _historyIndex > 0 ? () => _undo(-1) : null,
+                        onPressed: _session.canUndoCrop
+                            ? () => _undo(-1)
+                            : null,
                         color: _gray,
                         disabledColor: _colors.onSurface.withValues(
                           alpha: 0.38,
@@ -498,9 +453,7 @@ class CropImagePageState extends State<CropImagePage>
                       ),
                       IconButton(
                         tooltip: '恢复',
-                        onPressed: _historyIndex < _history.length - 1
-                            ? () => _undo(1)
-                            : null,
+                        onPressed: _session.canRedoCrop ? () => _undo(1) : null,
                         color: _gray,
                         disabledColor: _colors.onSurface.withValues(
                           alpha: 0.38,
@@ -706,10 +659,11 @@ class _CropView {
 }
 
 class _CropPainter extends CustomPainter {
-  const _CropPainter(this.image, this.state, this.camera);
+  const _CropPainter(this.image, this.state, this.camera, this.strokes);
   final ui.Image image;
   final CropState state;
   final Rect camera;
+  final List<EraseStroke> strokes;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -720,7 +674,7 @@ class _CropPainter extends CustomPainter {
     canvas.translate(size.width / 2, size.height / 2);
     canvas.scale(view.scale);
     canvas.translate(-camera.center.dx, -camera.center.dy);
-    paintCropImage(canvas, image, state);
+    paintCropImage(canvas, image, state, strokes: strokes);
     canvas.restore();
     // Dim only image pixels outside the crop, preserving the checkerboard.
     canvas.drawPath(
@@ -784,6 +738,7 @@ class _CropPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_CropPainter oldDelegate) =>
+      oldDelegate.strokes != strokes ||
       oldDelegate.image != image ||
       oldDelegate.state != state ||
       oldDelegate.camera != camera;

@@ -1,50 +1,38 @@
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:uuid/uuid.dart';
 
 import 'checkerboard_painter.dart';
 import 'erase_image_renderer.dart';
+import 'crop_geometry.dart';
+import 'crop_image_renderer.dart';
+import 'edit_session.dart';
 
 class EraseImagePage extends StatefulWidget {
   const EraseImagePage({
     super.key,
     required this.imagePath,
     this.embedded = false,
+    this.session,
   });
   final String imagePath;
   final bool embedded;
+  final EditSession? session;
 
   @override
   State<EraseImagePage> createState() => EraseImagePageState();
 }
 
-class _EraseState {
-  const _EraseState({
-    this.erased = const [],
-    this.pending = const [],
-    this.bounds,
-  });
-  final Rect? bounds;
-  final List<EraseStroke> erased;
-  final List<EraseStroke> pending;
-  bool get dirty => erased.isNotEmpty || pending.isNotEmpty;
-}
-
 class EraseImagePageState extends State<EraseImagePage> {
   ColorScheme get _colors => Theme.of(context).colorScheme;
-  ui.Image? _image;
-  late final Future<void> ready;
-  List<EraseStroke> _sharedStrokes = const [];
-  bool _receivedImage = false;
-  String? _error;
-  final _history = <_EraseState>[const _EraseState()];
-  int _index = 0;
-  _EraseState get _state => _history[_index];
+  late final EditSession _session;
+  ui.Image? get _image => _session.image;
+  Future<void> get ready => _session.ready;
+  String? get _error => _session.error;
+  EraseState get _state => _session.erase;
+  CropState? _lastCrop;
+  List<Offset>? _strokeClip;
   double _brush = 40;
   double _zoom = 1;
   Offset _pan = Offset.zero;
@@ -61,10 +49,7 @@ class EraseImagePageState extends State<EraseImagePage> {
   Offset _baseFocal = Offset.zero;
   Size _viewport = Size.zero;
   bool get _idle => _image != null && !_saving && _pointers.isEmpty;
-  Rect get _bounds =>
-      _state.bounds ??
-      Rect.fromLTWH(0, 0, _image!.width.toDouble(), _image!.height.toDouble());
-  Future<void>? _applying;
+  Rect get _bounds => _session.crop!.crop;
   double get _fit => math.min(
     _viewport.width / _bounds.width,
     _viewport.height / _bounds.height,
@@ -72,7 +57,8 @@ class EraseImagePageState extends State<EraseImagePage> {
   double get _scale => _fit * _zoom;
   Offset get _origin =>
       _viewport.center(Offset.zero) + _pan - _bounds.center * _scale;
-  Offset _unproject(Offset point) => (point - _origin) / _scale;
+  Offset _unproject(Offset point) =>
+      _session.toSource((point - _origin) / _scale);
   Offset get _focal =>
       _pointers.values.reduce((a, b) => a + b) / _pointers.length.toDouble();
   double get _span =>
@@ -82,105 +68,54 @@ class EraseImagePageState extends State<EraseImagePage> {
   @override
   void initState() {
     super.initState();
-    ready = _load();
+    _session = widget.session ?? EditSession(widget.imagePath);
+    _lastCrop = _session.crop;
+    _session.addListener(_sessionChanged);
   }
 
-  Future<ui.Image?> shareImage() async {
-    await ready;
-    await _applying;
-    if (_image == null || identical(_sharedStrokes, _state.erased)) return null;
-    final codec = await ui.instantiateImageCodec(
-      await renderErasedImage(_image!, _state.erased, bounds: _state.bounds),
-    );
-    try {
-      final image = (await codec.getNextFrame()).image;
-      _sharedStrokes = _state.erased;
-      return image;
-    } finally {
-      codec.dispose();
-    }
-  }
-
-  void replaceImage(ui.Image image) {
-    final old = _image;
+  void _sessionChanged() {
+    if (!mounted) return;
     setState(() {
-      _image = image;
-      _error = null;
-      _receivedImage = true;
-      _history
-        ..clear()
-        ..add(const _EraseState());
-      _index = 0;
-      _sharedStrokes = _state.erased;
-      _zoom = 1;
-      _pan = Offset.zero;
-      _drawing = null;
-      _pointers.clear();
+      if (!identical(_lastCrop, _session.crop)) {
+        _lastCrop = _session.crop;
+        _zoom = 1;
+        _pan = Offset.zero;
+        _drawing = null;
+        _pointers.clear();
+      }
     });
-    old?.dispose();
-  }
-
-  Future<void> _load() async {
-    try {
-      final codec = await ui.instantiateImageCodec(
-        await File(widget.imagePath).readAsBytes(),
-      );
-      late ui.Image image;
-      try {
-        image = (await codec.getNextFrame()).image;
-      } finally {
-        codec.dispose();
-      }
-      if (!mounted) {
-        image.dispose();
-        return;
-      }
-      setState(() => _image = image);
-    } catch (_) {
-      if (mounted) setState(() => _error = '照片无法读取，请返回重新选择');
-    }
   }
 
   @override
   void dispose() {
-    _image?.dispose();
+    _session.removeListener(_sessionChanged);
+    if (widget.session == null) _session.dispose();
     super.dispose();
   }
 
-  void _record(_EraseState state) {
-    _history.removeRange(_index + 1, _history.length);
-    _history.add(state);
-    _index++;
-  }
-
   void _restore(int direction) {
+    _session.undoErase(direction);
     setState(() {
-      _index += direction;
       _zoom = 1;
       _pan = Offset.zero;
     });
   }
 
-  Future<void> _applyErase() async {
+  void _applyErase() {
     if (!_idle || _state.pending.isEmpty) return;
-    setState(() => _saving = true);
-    try {
-      final strokes = [..._state.erased, ..._state.pending];
-      final bounds = await erasedContentBounds(_image!, strokes);
-      if (!mounted) return;
-      setState(() {
-        _record(_EraseState(erased: strokes, bounds: bounds));
-        _zoom = 1;
-        _pan = Offset.zero;
-      });
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('擦除失败，请重试')));
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+    _session.applyErase();
+    setState(() {
+      _zoom = 1;
+      _pan = Offset.zero;
+    });
+  }
+
+  void finishGesture() {
+    setState(() {
+      _drawing = null;
+      _pointers.clear();
+      _transforming = false;
+    });
   }
 
   void _rebase() {
@@ -196,7 +131,8 @@ class EraseImagePageState extends State<EraseImagePage> {
       _pointers[event.pointer] = event.localPosition;
       if (_pointers.length == 1) {
         _transforming = false;
-        _strokeWidth = _brush / _scale;
+        _strokeWidth = _brush / (_scale * _session.crop!.scale);
+        _strokeClip = _session.selectionClip;
         _drawing = [_unproject(event.localPosition)];
       } else {
         _drawing = null;
@@ -251,12 +187,8 @@ class EraseImagePageState extends State<EraseImagePage> {
           ),
         );
         if (bounds.overlaps(strokeBounds)) {
-          _record(
-            _EraseState(
-              bounds: _state.bounds,
-              erased: _state.erased,
-              pending: [..._state.pending, EraseStroke(points, _strokeWidth)],
-            ),
+          _session.addSelection(
+            EraseStroke(points, _strokeWidth, clip: _strokeClip),
           );
         }
       }
@@ -305,25 +237,10 @@ class EraseImagePageState extends State<EraseImagePage> {
       return;
     }
     setState(() => _saving = true);
-    File? output;
     try {
-      final bytes = await renderErasedImage(
-        _image!,
-        _state.erased,
-        bounds: _state.bounds,
-      );
-      final directory = await getTemporaryDirectory();
-      output = File(
-        p.join(directory.path, 'velax_erase_${const Uuid().v4()}.png'),
-      );
-      await output.writeAsBytes(bytes, flush: true);
-      if (!mounted) {
-        await output.delete();
-        return;
-      }
-      await _leave(output.path);
+      final path = await exportImage();
+      if (mounted) await _leave(path);
     } catch (_) {
-      if (output != null && await output.exists()) await output.delete();
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context)
@@ -331,24 +248,7 @@ class EraseImagePageState extends State<EraseImagePage> {
     }
   }
 
-  /// Exports applied edits without leaving the containing editor.
-  Future<String> exportImage() async {
-    await _applying;
-    if (_image == null || (_state.erased.isEmpty && !_receivedImage)) {
-      return widget.imagePath;
-    }
-    final bytes = await renderErasedImage(
-      _image!,
-      _state.erased,
-      bounds: _state.bounds,
-    );
-    final directory = await getTemporaryDirectory();
-    final output = File(
-      p.join(directory.path, 'velax_Erase_${const Uuid().v4()}.png'),
-    );
-    await output.writeAsBytes(bytes, flush: true);
-    return output.path;
-  }
+  Future<String> exportImage() => _session.exportImage();
 
   Widget _editor() => SafeArea(
     child: Column(
@@ -387,11 +287,16 @@ class EraseImagePageState extends State<EraseImagePage> {
                               foregroundPainter: _ErasePainter(
                                 _image!,
                                 _state,
+                                _session.crop!,
                                 _origin,
                                 _scale,
                                 _drawing == null
                                     ? null
-                                    : EraseStroke(_drawing!, _strokeWidth),
+                                    : EraseStroke(
+                                        _drawing!,
+                                        _strokeWidth,
+                                        clip: _strokeClip,
+                                      ),
                               ),
                             ),
                           ),
@@ -420,7 +325,7 @@ class EraseImagePageState extends State<EraseImagePage> {
                             alpha: 0.45,
                           ),
                           color: _colors.onSurfaceVariant,
-                          onPressed: _idle && _index > 0
+                          onPressed: _idle && _session.canUndoErase
                               ? () => _restore(-1)
                               : null,
                           icon: const Icon(Icons.undo),
@@ -431,7 +336,7 @@ class EraseImagePageState extends State<EraseImagePage> {
                             alpha: 0.45,
                           ),
                           color: _colors.onSurfaceVariant,
-                          onPressed: _idle && _index < _history.length - 1
+                          onPressed: _idle && _session.canRedoErase
                               ? () => _restore(1)
                               : null,
                           icon: const Icon(Icons.redo),
@@ -448,9 +353,7 @@ class EraseImagePageState extends State<EraseImagePage> {
                                 _colors.surfaceContainerHighest,
                           ),
                           onPressed: _idle && _state.pending.isNotEmpty
-                              ? () {
-                                  _applying = _applyErase();
-                                }
+                              ? _applyErase
                               : null,
                           child: const Text('擦除'),
                         ),
@@ -464,7 +367,7 @@ class EraseImagePageState extends State<EraseImagePage> {
                         onPressed: _idle
                             ? () => setState(() {
                                 if (_state.dirty) {
-                                  _record(const _EraseState());
+                                  _session.resetErase();
                                 }
                                 _zoom = 1;
                                 _pan = Offset.zero;
@@ -552,12 +455,14 @@ class _ErasePainter extends CustomPainter {
   const _ErasePainter(
     this.image,
     this.state,
+    this.crop,
     this.origin,
     this.scale,
     this.drawing,
   );
   final ui.Image image;
-  final _EraseState state;
+  final EraseState state;
+  final CropState crop;
   final Offset origin;
   final double scale;
   final EraseStroke? drawing;
@@ -567,10 +472,12 @@ class _ErasePainter extends CustomPainter {
     canvas.save();
     canvas.translate(origin.dx, origin.dy);
     canvas.scale(scale);
-    canvas.clipRect(
-      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-    );
-    paintErasedImage(canvas, image, state.erased);
+    canvas.clipRect(crop.crop);
+    paintCropImage(canvas, image, crop, strokes: state.erased);
+    canvas.translate(crop.offset.dx, crop.offset.dy);
+    canvas.rotate(crop.angle);
+    canvas.scale(crop.mirrored ? -crop.scale : crop.scale, crop.scale);
+    canvas.translate(-image.width / 2, -image.height / 2);
     paintEraseStrokes(canvas, [
       ...state.pending,
       ?drawing,

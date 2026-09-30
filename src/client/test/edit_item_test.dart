@@ -1,12 +1,40 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:velax/domain/models/brand.dart';
 import 'package:velax/domain/models/category.dart';
 import 'package:velax/domain/models/color.dart' as model;
 import 'package:velax/features/wardrobe/edit_image_page.dart';
+import 'package:velax/features/wardrobe/crop_image_page.dart';
 import 'package:velax/features/wardrobe/item_options.dart';
 
 void main() {
+  late Directory directory;
+  late File source;
+  setUpAll(() async {
+    directory = await Directory.systemTemp.createTemp('velax_item_edit_');
+    final recorder = ui.PictureRecorder();
+    Canvas(
+      recorder,
+    ).drawRect(const Rect.fromLTWH(0, 0, 20, 20), Paint()..color = Colors.red);
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(20, 20);
+    picture.dispose();
+    source = File('${directory.path}/source.png');
+    await source.writeAsBytes(
+      (await image.toByteData(format: ui.ImageByteFormat.png))!.buffer
+          .asUint8List(),
+    );
+    image.dispose();
+  });
+  tearDownAll(() async {
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    await source.delete();
+    await directory.delete();
+  });
   testWidgets(
     'selection sheets confirm, cancel and restore the draft after back',
     (tester) async {
@@ -59,8 +87,23 @@ void main() {
       );
       await tester.pumpWidget(
         MaterialApp(
-          home: EditImagePage(imagePath: '/missing.jpg', options: options),
+          home: EditImagePage(imagePath: source.path, options: options),
         ),
+      );
+      for (
+        var i = 0;
+        i < 100 &&
+            find.byKey(const ValueKey('crop-preview')).evaluate().isEmpty;
+        i++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+      expect(
+        tester.widget<CropImagePage>(find.byType(CropImagePage)).session!.image,
+        isNotNull,
       );
       await tester.pumpAndSettle();
       Future<void> tap(String text) async {

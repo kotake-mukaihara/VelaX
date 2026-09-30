@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'crop_image_page.dart';
+import 'edit_session.dart';
 import 'erase_image_page.dart';
 import 'eraser_icon.dart';
 
@@ -21,6 +22,7 @@ class EditImagePage extends StatefulWidget {
 
 class _EditImagePageState extends State<EditImagePage> {
   final _draft = ItemDraft();
+  late final _session = EditSession(widget.imagePath);
   bool _confirmingExit = false;
   late String _imagePath = widget.imagePath;
   final _temporaryImages = <String>[];
@@ -32,11 +34,11 @@ class _EditImagePageState extends State<EditImagePage> {
 
   Future<bool> _commit() async {
     try {
-      final path = _erase
-          ? await _eraseKey.currentState?.exportImage()
-          : await _cropKey.currentState?.exportImage();
-      if (path != null && path != _imagePath) {
-        _temporaryImages.add(path);
+      _cropKey.currentState?.finishGesture();
+      _eraseKey.currentState?.finishGesture();
+      final path = await _session.exportImage();
+      if (path != _imagePath) {
+        if (path != widget.imagePath) _temporaryImages.add(path);
         _imagePath = path;
       }
       return mounted;
@@ -49,37 +51,14 @@ class _EditImagePageState extends State<EditImagePage> {
     }
   }
 
-  Future<void> _selectTool(bool erase) async {
+  void _selectTool(bool erase) {
     if (_busy || erase == _erase) return;
-    setState(() => _busy = true);
-    try {
-      await Future.wait([
-        _cropKey.currentState!.ready,
-        _eraseKey.currentState!.ready,
-      ]);
-      final image = _erase
-          ? await _eraseKey.currentState!.shareImage()
-          : await _cropKey.currentState!.shareImage();
-      if (!mounted) {
-        image?.dispose();
-        return;
-      }
-      if (image != null) {
-        if (erase) {
-          _eraseKey.currentState!.replaceImage(image);
-        } else {
-          _cropKey.currentState!.replaceImage(image);
-        }
-      }
-      setState(() => _erase = erase);
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('图片处理失败，请重试')));
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
+    if (_erase) {
+      _eraseKey.currentState?.finishGesture();
+    } else {
+      _cropKey.currentState?.finishGesture();
     }
+    setState(() => _erase = erase);
   }
 
   Future<void> _next() async {
@@ -114,6 +93,7 @@ class _EditImagePageState extends State<EditImagePage> {
 
   @override
   void dispose() {
+    _session.dispose();
     for (final path in _temporaryImages) {
       _removeTemporaryImage(path);
     }
@@ -187,11 +167,13 @@ class _EditImagePageState extends State<EditImagePage> {
                       key: _cropKey,
                       imagePath: widget.imagePath,
                       embedded: true,
+                      session: _session,
                     ),
                     EraseImagePage(
                       key: _eraseKey,
                       imagePath: widget.imagePath,
                       embedded: true,
+                      session: _session,
                     ),
                   ],
                 ),
