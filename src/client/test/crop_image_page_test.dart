@@ -113,7 +113,7 @@ void main() {
         matching: find.byType(CustomPaint),
       ),
     );
-    final dynamic painter = paint.painter;
+    final dynamic painter = paint.foregroundPainter;
     return painter.state as CropState;
   }
 

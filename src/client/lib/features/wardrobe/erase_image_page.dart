@@ -363,39 +363,41 @@ class EraseImagePageState extends State<EraseImagePage> {
                           style: TextStyle(color: _colors.onSurface),
                         ),
                 )
-              : Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      _viewport = constraints.biggest;
-                      return Listener(
-                        key: const ValueKey('erase-preview'),
-                        behavior: HitTestBehavior.opaque,
-                        onPointerDown: _down,
-                        onPointerMove: _move,
-                        onPointerUp: _up,
-                        onPointerCancel: (_) => setState(() {
-                          _pointers.clear();
-                          _drawing = null;
-                          _transforming = false;
-                        }),
-                        child: ClipRect(
-                          child: CustomPaint(
-                            size: constraints.biggest,
-                            painter: const CheckerboardPainter(),
-                            foregroundPainter: _ErasePainter(
-                              _image!,
-                              _state,
-                              _origin,
-                              _scale,
-                              _drawing == null
-                                  ? null
-                                  : EraseStroke(_drawing!, _strokeWidth),
+              : CustomPaint(
+                  painter: const CheckerboardPainter(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        _viewport = constraints.biggest;
+                        return Listener(
+                          key: const ValueKey('erase-preview'),
+                          behavior: HitTestBehavior.opaque,
+                          onPointerDown: _down,
+                          onPointerMove: _move,
+                          onPointerUp: _up,
+                          onPointerCancel: (_) => setState(() {
+                            _pointers.clear();
+                            _drawing = null;
+                            _transforming = false;
+                          }),
+                          child: ClipRect(
+                            child: CustomPaint(
+                              size: constraints.biggest,
+                              foregroundPainter: _ErasePainter(
+                                _image!,
+                                _state,
+                                _origin,
+                                _scale,
+                                _drawing == null
+                                    ? null
+                                    : EraseStroke(_drawing!, _strokeWidth),
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
                 ),
         ),

@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import 'checkerboard_painter.dart';
 import 'crop_geometry.dart';
 import 'crop_image_renderer.dart';
 
@@ -402,7 +403,8 @@ class CropImagePageState extends State<CropImagePage>
                           child: ClipRect(
                             child: CustomPaint(
                               size: constraints.biggest,
-                              painter: _CropPainter(
+                              painter: const CheckerboardPainter(),
+                              foregroundPainter: _CropPainter(
                                 _image!,
                                 _visualState,
                                 _camera,
@@ -713,12 +715,23 @@ class _CropPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final view = _CropView(camera, size);
     final crop = view.rect(state.crop);
+    canvas.saveLayer(Offset.zero & size, Paint());
     canvas.save();
     canvas.translate(size.width / 2, size.height / 2);
     canvas.scale(view.scale);
     canvas.translate(-camera.center.dx, -camera.center.dy);
-    canvas.clipRect(state.crop);
     paintCropImage(canvas, image, state);
+    canvas.restore();
+    // Dim only image pixels outside the crop, preserving the checkerboard.
+    canvas.drawPath(
+      Path()
+        ..fillType = PathFillType.evenOdd
+        ..addRect(Offset.zero & size)
+        ..addRect(crop),
+      Paint()
+        ..color = const Color(0xA6171717)
+        ..blendMode = BlendMode.srcATop,
+    );
     canvas.restore();
     final grid = Paint()
       ..color = const Color(0x70FFFFFF)
